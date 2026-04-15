@@ -1,0 +1,11 @@
+{
+  "id": "FogOfWar",
+  "name": "Fog of War",
+  "author": "Spencer Fox",
+  "description": "Hide map nodes beyond the current row, except the act boss.",
+  "version": "0.0.1",
+  "has_pck": true,
+  "has_dll": true,
+  "dependencies": ["BaseLib"],
+  "affects_gameplay": true
+}

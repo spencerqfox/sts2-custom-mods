@@ -1,0 +1,19 @@
+; Engine configuration file.
+; This file is normally edited through the Godot editor.
+
+config_version=5
+
+[application]
+
+config/name="FrozenHand"
+config/features=PackedStringArray("4.5", "C#", "Mobile")
+config/icon="res://mod_image.png"
+
+[dotnet]
+
+project/assembly_name="FrozenHand"
+
+[rendering]
+
+renderer/rendering_method="mobile"
+environment/defaults/default_clear_color=Color(0.0923724, 0.122398, 0.116929, 1)

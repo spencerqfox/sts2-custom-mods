@@ -1,0 +1,43 @@
+# Godot 4+ specific ignores
+.godot/
+.godot_user/
+.nomedia
+
+# Godot-specific ignores
+.import/
+export.cfg
+export_credentials.cfg
+
+# Imported translations (automatically generated from CSV files)
+*.translation
+
+# Mono-specific ignores
+.mono/
+data_*/
+mono_crash.*.json
+
+# Coding specific ignores
+.claude/
+.codex/
+.dotnet_cli/
+.dotnet-cli/
+.tmp/
+.mcp.json
+
+# Local environment overrides
+.env
+
+# .NET build output
+bin/
+obj/
+
+# Mod build artifacts
+*.pck
+*.dll
+*.pdb
+*.deps.json
+*.runtimeconfig.json
+
+# Godot import/uid sidecars (regenerated on each export)
+*.import
+*.uid

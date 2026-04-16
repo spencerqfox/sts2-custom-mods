@@ -3,7 +3,7 @@
   "name": "Frozen Hand",
   "author": "Spencer Fox",
   "description": "Persist hand, draw, discard, and exhaust piles between combats.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "has_pck": true,
   "has_dll": true,
   "dependencies": ["BaseLib"],

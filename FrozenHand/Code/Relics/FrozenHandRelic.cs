@@ -249,18 +249,25 @@ public sealed class FrozenHandRelic : CustomRelicModel
             }
         }
 
-        var restoredCard = CardModel.FromSerializable(snapshot.Card);
-        combatState.AddCard(restoredCard, owner);
         CardModel? currentDeckCard = null;
-
         if (snapshot.DeckIndex is int index)
         {
             currentDeckCard = deckCards[index];
-            restoredCard.DeckVersion = currentDeckCard;
         }
+
+        if (currentDeckCard is not null && currentDeckCard.Id != snapshot.Card.Id)
+        {
+            var cloned = combatState.CloneCard(currentDeckCard);
+            cloned.DeckVersion = currentDeckCard;
+            return cloned;
+        }
+
+        var restoredCard = CardModel.FromSerializable(snapshot.Card);
+        combatState.AddCard(restoredCard, owner);
 
         if (currentDeckCard is not null)
         {
+            restoredCard.DeckVersion = currentDeckCard;
             FrozenHandCardStateReflection.ApplyPermanentDeckUpgradeDelta(
                 restoredCard,
                 currentDeckCard,

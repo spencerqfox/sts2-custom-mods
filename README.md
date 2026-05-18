@@ -1,6 +1,6 @@
 # sts2-custom-mods
 
-Personal repo of Slay the Spire 2 gameplay mods. Three mods live here today: **Fog of War**, **Frozen Hand**, and **Door Remaker**. All are DLL + PCK mods built against Godot 4.5.1 Mono and require [BaseLib](https://github.com/Alchyr/BaseLib-StS2).
+Personal repo of Slay the Spire 2 gameplay mods. Five mods live here today: **Fog of War**, **Frozen Hand**, **Door Remaker**, **Heavy Enchantment**, and **Neow Custom Mode**. All are DLL + PCK mods built against Godot 4.5.1 Mono and require [BaseLib](https://github.com/Alchyr/BaseLib-StS2).
 
 ## Mods
 
@@ -22,6 +22,18 @@ Adds a custom Ancient relic, *Frozen Hand*, offered as an extra choice at Neow. 
 
 A mod for reworking the Act 3 Doormaker boss encounter (built for STS2 v0.103.2). DoorRemaker currently implements a Hunger-phase redesign and leaves the rest of the Doormaker fight vanilla. Instead of exhausting every card during the phase, it starts by exhausting 1 card, scaling by 2 every phase. See [DoorRemaker/README.md](DoorRemaker/README.md).
 
+### Heavy Enchantment
+
+![Heavy Enchantment screenshot](HeavyEnchantment/HeavyEnchantmentScreenshot.png)
+
+Adds a `Heavy` enchantment option to Field of Man-Sized Holes. Choosing it opens the normal deck enchantment selector and applies the custom enchantment to one eligible card, moving that card to the bottom of the draw pile at combat start and during non-initial shuffles. See [HeavyEnchantment/README.md](HeavyEnchantment/README.md).
+
+### Neow Custom Mode
+
+![Neow Custom Mode screenshot](NeowCustomMode/NeowCustomModeScreenshot.png)
+
+Adds a **Neow Bonus** good modifier to custom runs. When selected, Neow shows the same three-option relic choice used by normal runs, giving custom-mode runs access to the usual starting bonus flow. See [NeowCustomMode/README.md](NeowCustomMode/README.md).
+
 ## Repo Layout
 
 ```text
@@ -30,7 +42,9 @@ sts2-custom-mods/
 |-- .env.example             # template for repo-root .env (GODOT_EXE)
 |-- DoorRemaker/             # Door Remaker mod scaffold
 |-- FogOfWar/                # Fog of War mod
-`-- FrozenHand/              # Frozen Hand mod
+|-- FrozenHand/              # Frozen Hand mod
+|-- HeavyEnchantment/        # Heavy Enchantment mod
+`-- NeowCustomMode/          # Neow Custom Mode mod
 ```
 
 ## Toolchain

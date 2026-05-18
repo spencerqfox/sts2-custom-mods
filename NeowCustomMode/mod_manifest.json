@@ -1,0 +1,11 @@
+{
+  "id": "NeowCustomMode",
+  "name": "Neow Custom Mode",
+  "author": "Spencer Fox",
+  "description": "Adds a custom-run modifier that grants a Neow bonus in custom mode.",
+  "version": "0.0.1",
+  "has_pck": true,
+  "has_dll": true,
+  "dependencies": ["BaseLib"],
+  "affects_gameplay": true
+}

@@ -1,0 +1,11 @@
+{
+  "id": "HeavyEnchantment",
+  "name": "Heavy Enchantment",
+  "author": "Spencer Fox",
+  "description": "Adds a Heavy enchantment option to Field of Man-Sized Holes.",
+  "version": "0.0.1",
+  "has_pck": true,
+  "has_dll": true,
+  "dependencies": ["BaseLib"],
+  "affects_gameplay": true
+}

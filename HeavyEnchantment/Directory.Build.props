@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Override if STS2 is installed somewhere non-standard. -->
+    <!-- <Sts2Path>C:/Program Files (x86)/Steam/steamapps/common/Slay the Spire 2</Sts2Path> -->
+  </PropertyGroup>
+</Project>

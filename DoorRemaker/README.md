@@ -171,7 +171,7 @@ This produces `DoorRemaker.pck` and `bin/Debug/DoorRemaker.dll`, then cleans int
 
 ## Installing
 
-Copy the built artifacts into `<Slay the Spire 2 install>/mods/DoorRemaker/`. On a default Windows Steam install that's `C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\mods\DoorRemaker\`. **BaseLib must already be installed** in `<Slay the Spire 2 install>/mods/BaseLib/` first, or DoorRemaker will not load.
+Copy the built artifacts into `<Slay the Spire 2 install>/mods/DoorRemaker/`. On a default Windows Steam install that's `C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\mods\DoorRemaker\`.
 
 From the `DoorRemaker/` directory:
 
@@ -199,6 +199,6 @@ The current Hunger redesign also depends on:
 - `MegaCrit.Sts2.Core.Models.CardModel.OnPlayWrapper`
 - `MegaCrit.Sts2.Core.Hooks.Hook.ModifyCardPlayResultPileTypeAndPosition`
 - `MegaCrit.Sts2.Core.Models.PowerModel`
-- BaseLib `CustomPowerModel`
+- `DoorRemaker.Powers.DevouredCounterPower`
 
 If a game update changes any of those types, this README's documented baseline and current Hunger behavior may need to be re-verified.

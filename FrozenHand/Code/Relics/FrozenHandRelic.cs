@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using BaseLib.Abstracts;
-using BaseLib.Utils;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Cards;
@@ -12,7 +10,6 @@ using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Entities.Relics;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Models;
-using MegaCrit.Sts2.Core.Models.RelicPools;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves;
@@ -20,8 +17,7 @@ using MegaCrit.Sts2.Core.Saves.Runs;
 
 namespace FrozenHand.Relics;
 
-[Pool(typeof(SharedRelicPool))]
-public sealed class FrozenHandRelic : CustomRelicModel
+public sealed class FrozenHandRelic : RelicModel
 {
     private const string CustomIconPath = "res://FrozenHand/images/relics/frozen_hand.png";
     private static readonly JsonSerializerOptions SnapshotJsonOptions = new()

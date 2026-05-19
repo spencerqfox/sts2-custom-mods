@@ -1,6 +1,6 @@
 # sts2-custom-mods
 
-Personal repo of Slay the Spire 2 gameplay mods. Five mods live here today: **Fog of War**, **Frozen Hand**, **Door Remaker**, **Heavy Enchantment**, and **Neow Custom Mode**. All are DLL + PCK mods built against Godot 4.5.1 Mono and require [BaseLib](https://github.com/Alchyr/BaseLib-StS2).
+Personal repo of Slay the Spire 2 gameplay mods. Six mods live here today: **Fog of War**, **Frozen Hand**, **Door Remaker**, **Heavy Enchantment**, **Neow Custom Mode**, and **Friend Trading**. All are DLL + PCK mods built against Godot 4.5.1 Mono.
 
 ## Mods
 
@@ -34,6 +34,10 @@ Adds a `Heavy` enchantment option to Field of Man-Sized Holes. Choosing it opens
 
 Adds a **Neow Bonus** good modifier to custom runs. When selected, Neow shows the same three-option relic choice used by normal runs, giving custom-mode runs access to the usual starting bonus flow. See [NeowCustomMode/README.md](NeowCustomMode/README.md).
 
+### Friend Trading
+
+Adds reciprocal multiplayer **Trade Card** and **Trade Relic** options at rest sites. Card trades exchange removable deck cards. Relic trades use the game's tradability rules and reject relics with on-pickup effects. See [FriendTrading/README.md](FriendTrading/README.md).
+
 ## Repo Layout
 
 ```text
@@ -44,7 +48,8 @@ sts2-custom-mods/
 |-- FogOfWar/                # Fog of War mod
 |-- FrozenHand/              # Frozen Hand mod
 |-- HeavyEnchantment/        # Heavy Enchantment mod
-`-- NeowCustomMode/          # Neow Custom Mode mod
+|-- NeowCustomMode/          # Neow Custom Mode mod
+`-- FriendTrading/           # Friend Trading mod
 ```
 
 ## Toolchain
@@ -53,7 +58,6 @@ All mods are pinned to:
 
 - `Godot.NET.Sdk/4.5.1` - do **not** upgrade to 4.6.x; the game ships on 4.5.1.
 - `net9.0`
-- `Alchyr.Sts2.BaseLib` `0.1.*`
 - Game references: `sts2.dll`, `0Harmony` (picked up from the Slay the Spire 2 install)
 
 Each project imports `Sts2PathDiscovery.props`, which auto-discovers the Slay the Spire 2 install on Windows, Linux, and macOS. If discovery fails, override `Sts2DataDir` in the project's `Directory.Build.props`. Builds hard-fail if `Sts2DataDir` cannot be resolved; there is no silent fallback.
@@ -92,7 +96,7 @@ Each mod has an `install.ps1` that copies the freshly-built artifacts into the g
 
 The script derives the mod name from the folder, verifies all six artifacts exist, then copies them. If a build artifact is missing it fails loudly and tells you to run `./build.ps1` first. The install path is hardcoded to the default Windows Steam location; edit the `$sts2` line in the script for a non-default install.
 
-All current `mod_manifest.json` files declare `has_pck`, `has_dll`, `dependencies: ["BaseLib"]`, and `affects_gameplay: true`. **BaseLib must already be installed** in `<Slay the Spire 2 install>/mods/BaseLib/` before these mods will load.
+All current `mod_manifest.json` files declare `has_pck`, `has_dll`, `dependencies: []`, and `affects_gameplay: true`.
 
 ## Maintenance Notes
 

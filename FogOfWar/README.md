@@ -40,10 +40,6 @@ The visibility check reaches into private game state via `AccessTools.FieldRefAc
 
 Fog of War is currently **code-only**. The `FogOfWar/images/` and `FogOfWar/localization/eng/` folders exist (Godot project scaffolding) but are empty. No icons, no strings, no VFX.
 
-## BaseLib Dependency
-
-[mod_manifest.json](mod_manifest.json) lists `"dependencies": ["BaseLib"]` even though the current implementation does not use BaseLib APIs. The dependency is kept so the project stays aligned with the rest of this repo's mods and so we can pull in BaseLib features (localization, settings, etc.) later without a manifest change.
-
 ## Building
 
 See [the root README](../README.md#building) for the full toolchain requirements and `.env` setup. Once `GODOT_EXE` is configured:
@@ -57,7 +53,7 @@ This produces `FogOfWar.pck` (next to the project) and `bin/Debug/FogOfWar.dll`,
 
 ## Installing
 
-Copy the built artifacts into `<Slay the Spire 2 install>/mods/FogOfWar/`. On a default Windows Steam install that's `C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\mods\FogOfWar\`. **BaseLib must already be installed** in `<Slay the Spire 2 install>/mods/BaseLib/` first, or FogOfWar will not load.
+Copy the built artifacts into `<Slay the Spire 2 install>/mods/FogOfWar/`. On a default Windows Steam install that's `C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\mods\FogOfWar\`.
 
 From the `FogOfWar/` directory:
 

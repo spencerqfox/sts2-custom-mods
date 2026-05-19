@@ -3,8 +3,8 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <RootNamespace>NeowCustomMode</RootNamespace>
-    <AssemblyName>NeowCustomMode</AssemblyName>
+    <RootNamespace>FriendTrading</RootNamespace>
+    <AssemblyName>FriendTrading</AssemblyName>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -42,13 +42,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AdditionalFiles Include="NeowCustomMode/localization/**/*.json" />
+    <AdditionalFiles Include="FriendTrading/localization/**/*.json" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="NeowCustomMode/**" />
+    <Compile Remove="FriendTrading/**" />
     <Compile Remove=".godot/**" />
-    <EmbeddedResource Remove="NeowCustomMode/**" />
+    <EmbeddedResource Remove="FriendTrading/**" />
     <EmbeddedResource Remove=".godot/**" />
   </ItemGroup>
 
@@ -57,7 +57,7 @@
     <None Include="mod_manifest.json" />
     <None Include="project.godot" />
     <None Include="export_presets.cfg" />
-    <None Include="NeowCustomMode/**" />
+    <None Include="FriendTrading/**" />
   </ItemGroup>
 
   <Target Name="CheckDependencyPaths">

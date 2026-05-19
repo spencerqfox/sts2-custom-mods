@@ -28,7 +28,7 @@ If either check fails, the option is not added.
 
 ## How It Works
 
-- [Code/Relics/FrozenHandRelic.cs](Code/Relics/FrozenHandRelic.cs) — the relic itself, a BaseLib `CustomRelicModel`. Pile state is stored directly on the relic via `[SavedProperty]`: a `bool FrozenHandHasStoredPiles` flag and a `string FrozenHandStoredSnapshotJson` serialized snapshot. State is **relic-bound save data** — there is no separate save system.
+- [Code/Relics/FrozenHandRelic.cs](Code/Relics/FrozenHandRelic.cs) — the relic itself, implemented as a native `RelicModel`. Pile state is stored directly on the relic via `[SavedProperty]`: a `bool FrozenHandHasStoredPiles` flag and a `string FrozenHandStoredSnapshotJson` serialized snapshot. State is **relic-bound save data** — there is no separate save system.
 - [Code/Relics/FrozenHandCardStateReflection.cs](Code/Relics/FrozenHandCardStateReflection.cs) — the snapshot data model. Each snapshotted card records its deck index and the permanent deck upgrade level at save time; restore uses those to find the current deck card and reapply any upgrade delta.
 - [Code/Patches/PlayerPopulateCombatStatePatch.cs](Code/Patches/PlayerPopulateCombatStatePatch.cs) — patches `Player.PopulateCombatState`. If Frozen Hand has a stored snapshot, this patch **returns false** to skip the game's normal combat setup, and the relic restores piles itself.
 - [Code/Patches/NCombatUiActivatePatch.cs](Code/Patches/NCombatUiActivatePatch.cs) — after a restore, walks the restored hand and creates any missing `NCard` UI nodes via `NCard.Create()`. Without this patch, restored hand cards exist in model state but have no visual.
@@ -66,7 +66,7 @@ Do **not** upgrade the project to `Godot.NET.Sdk/4.6.x` — the game ships on 4.
 
 ## Installing
 
-Copy the built artifacts into `<Slay the Spire 2 install>/mods/FrozenHand/`. On a default Windows Steam install that's `C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\mods\FrozenHand\`. **BaseLib must already be installed** in `<Slay the Spire 2 install>/mods/BaseLib/` first, or FrozenHand will not load.
+Copy the built artifacts into `<Slay the Spire 2 install>/mods/FrozenHand/`. On a default Windows Steam install that's `C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\mods\FrozenHand\`.
 
 From the `FrozenHand/` directory:
 

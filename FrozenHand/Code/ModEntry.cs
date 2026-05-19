@@ -1,6 +1,8 @@
+using FrozenHand.Relics;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Modding;
+using MegaCrit.Sts2.Core.Models.RelicPools;
 
 namespace FrozenHand;
 
@@ -12,6 +14,8 @@ public static class ModEntry
     public static void Init()
     {
         Log.Info("[FrozenHand] Initializing...");
+
+        ModHelper.AddModelToPool<SharedRelicPool, FrozenHandRelic>();
 
         _harmony = new Harmony("com.spencerfox.frozenhand");
         _harmony.PatchAll();

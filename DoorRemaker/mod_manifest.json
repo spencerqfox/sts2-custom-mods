@@ -3,9 +3,9 @@
   "name": "Door Remaker",
   "author": "Spencer Fox",
   "description": "Remake the Act 3 Doormaker boss encounter.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "has_pck": true,
   "has_dll": true,
-  "dependencies": ["BaseLib"],
+  "dependencies": [],
   "affects_gameplay": true
 }

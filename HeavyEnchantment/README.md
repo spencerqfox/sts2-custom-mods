@@ -13,7 +13,7 @@ Choosing it opens the normal deck enchantment selector and applies the custom `H
 
 ## How It Works
 
-- [Code/Enchantments/Heavy.cs](Code/Enchantments/Heavy.cs) defines the BaseLib custom enchantment.
+- [Code/Enchantments/Heavy.cs](Code/Enchantments/Heavy.cs) defines the custom enchantment as a native `EnchantmentModel`.
 - [Code/Patches/FieldOfManSizedHolesHeavyOptionPatch.cs](Code/Patches/FieldOfManSizedHolesHeavyOptionPatch.cs) appends the event option and performs the enchantment flow.
 - [HeavyEnchantment/localization/eng/enchantments.json](HeavyEnchantment/localization/eng/enchantments.json) and [HeavyEnchantment/localization/eng/events.json](HeavyEnchantment/localization/eng/events.json) provide the UI text.
 
@@ -30,4 +30,4 @@ This produces `HeavyEnchantment.pck` and `bin/Debug/HeavyEnchantment.dll`.
 
 ## Installing
 
-Run `./install.ps1` from this directory after building. BaseLib 3.0 or newer must already be installed.
+Run `./install.ps1` from this directory after building.

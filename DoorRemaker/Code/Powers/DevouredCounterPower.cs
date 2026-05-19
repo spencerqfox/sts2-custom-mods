@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using BaseLib.Abstracts;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Cards;
@@ -12,11 +11,11 @@ using MegaCrit.Sts2.Core.Models.Afflictions;
 
 namespace DoorRemaker.Powers;
 
-public sealed class DevouredCounterPower : CustomPowerModel
+public sealed class DevouredCounterPower : PowerModel
 {
     private const int DevouredAfflictionAmount = 1;
-    private const string HungerPackedIconPath = "res://images/atlases/power_atlas.sprites/hunger_power.tres";
-    private const string HungerBigIconPath = "res://images/powers/hunger_power.png";
+    internal const string HungerPackedIconPath = "res://images/atlases/power_atlas.sprites/hunger_power.tres";
+    internal const string HungerBigIconPath = "res://images/powers/hunger_power.png";
 
     private sealed class Data
     {
@@ -36,10 +35,6 @@ public sealed class DevouredCounterPower : CustomPowerModel
     {
         HoverTipFactory.FromKeyword(CardKeyword.Exhaust)
     };
-
-    public override string? CustomPackedIconPath => HungerPackedIconPath;
-
-    public override string? CustomBigIconPath => HungerBigIconPath;
 
     protected override object InitInternalData()
     {

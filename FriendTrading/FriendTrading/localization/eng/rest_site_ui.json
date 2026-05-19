@@ -1,0 +1,6 @@
+{
+  "OPTION_FRIEND_TRADE_CARD.name": "Trade Card",
+  "OPTION_FRIEND_TRADE_CARD.description": "Choose another player and a card from your deck. If they choose you with [gold]Trade Card[/gold], you exchange cards.",
+  "OPTION_FRIEND_TRADE_RELIC.name": "Trade Relic",
+  "OPTION_FRIEND_TRADE_RELIC.description": "Choose another player and a tradable relic. If they choose you with [gold]Trade Relic[/gold], you exchange relics. Relics with [gold]on-pickup[/gold] effects cannot be traded."
+}

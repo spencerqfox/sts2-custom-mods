@@ -42,7 +42,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Alchyr.Sts2.BaseLib" Version="0.1.*" PrivateAssets="All" />
     <AdditionalFiles Include="FogOfWar/localization/**/*.json" />
   </ItemGroup>
 

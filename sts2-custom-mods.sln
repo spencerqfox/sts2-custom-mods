@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeowCustomMode", "NeowCusto
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FriendTrading", "FriendTrading\FriendTrading.csproj", "{4449D39B-9F68-48C4-B58F-334000771D23}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RandomCharacterCustomMode", "RandomCharacterCustomMode\RandomCharacterCustomMode.csproj", "{047801D8-AD01-42EB-B6AF-1294046945D9}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".tmp", ".tmp", "{8171D0AE-4262-3EAB-52BD-BB021CE126C4}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModTemplate", ".tmp\ModTemplate\ModTemplate.csproj", "{B2B0A7C9-8CCC-FFBD-422E-EDDD56298044}"
@@ -48,6 +50,10 @@ Global
 		{4449D39B-9F68-48C4-B58F-334000771D23}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4449D39B-9F68-48C4-B58F-334000771D23}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4449D39B-9F68-48C4-B58F-334000771D23}.Release|Any CPU.Build.0 = Release|Any CPU
+		{047801D8-AD01-42EB-B6AF-1294046945D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{047801D8-AD01-42EB-B6AF-1294046945D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{047801D8-AD01-42EB-B6AF-1294046945D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{047801D8-AD01-42EB-B6AF-1294046945D9}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B2B0A7C9-8CCC-FFBD-422E-EDDD56298044}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B2B0A7C9-8CCC-FFBD-422E-EDDD56298044}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B2B0A7C9-8CCC-FFBD-422E-EDDD56298044}.Release|Any CPU.ActiveCfg = Release|Any CPU

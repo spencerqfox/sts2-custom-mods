@@ -1,0 +1,11 @@
+{
+  "id": "RandomCharacterCustomMode",
+  "name": "Random Character Custom Mode",
+  "author": "Spencer Fox",
+  "description": "Adds the standard random character option to custom runs.",
+  "version": "0.0.1",
+  "has_pck": true,
+  "has_dll": true,
+  "dependencies": [],
+  "affects_gameplay": true
+}

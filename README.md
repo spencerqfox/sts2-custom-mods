@@ -1,6 +1,6 @@
 # sts2-custom-mods
 
-Personal repo of Slay the Spire 2 gameplay mods. Six mods live here today: **Fog of War**, **Frozen Hand**, **Door Remaker**, **Heavy Enchantment**, **Neow Custom Mode**, and **Friend Trading**. All are DLL + PCK mods built against Godot 4.5.1 Mono.
+Personal repo of Slay the Spire 2 gameplay mods. Seven mods live here today: **Fog of War**, **Frozen Hand**, **Door Remaker**, **Heavy Enchantment**, **Neow Custom Mode**, **Random Character Custom Mode**, and **Friend Trading**. All are DLL + PCK mods built against Godot 4.5.1 Mono.
 
 ## Mods
 
@@ -34,6 +34,10 @@ Adds a `Heavy` enchantment option to Field of Man-Sized Holes. Choosing it opens
 
 Adds a **Neow Bonus** good modifier to custom runs. When selected, Neow shows the same three-option relic choice used by normal runs, giving custom-mode runs access to the usual starting bonus flow. See [NeowCustomMode/README.md](NeowCustomMode/README.md).
 
+### Random Character Custom Mode
+
+Adds the standard **Random** character button to custom runs and lets the game's existing random-character resolution choose a normal character before the run starts. See [RandomCharacterCustomMode/README.md](RandomCharacterCustomMode/README.md).
+
 ### Friend Trading
 
 Adds reciprocal multiplayer **Trade Card** and **Trade Relic** options at rest sites. Card trades exchange removable deck cards. Relic trades use the game's tradability rules and reject relics with on-pickup effects. See [FriendTrading/README.md](FriendTrading/README.md).
@@ -49,7 +53,8 @@ sts2-custom-mods/
 |-- FrozenHand/              # Frozen Hand mod
 |-- HeavyEnchantment/        # Heavy Enchantment mod
 |-- NeowCustomMode/          # Neow Custom Mode mod
-`-- FriendTrading/           # Friend Trading mod
+|-- FriendTrading/           # Friend Trading mod
+`-- RandomCharacterCustomMode/ # Random Character Custom Mode mod
 ```
 
 ## Toolchain

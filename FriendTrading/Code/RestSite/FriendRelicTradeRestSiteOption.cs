@@ -49,7 +49,7 @@ internal sealed class FriendRelicTradeRestSiteOption : FriendTradeRestSiteOption
             return null;
         }
 
-        RelicModel? relic = await RelicSelectCmd.FromChooseARelicScreen(Owner, relics);
+        RelicModel? relic = await FriendRelicTradeSelectionScreen.Select(Owner, relics);
         return relic == null ? null : new RelicTradePayload(relic);
     }
 

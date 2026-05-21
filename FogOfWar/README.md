@@ -2,16 +2,16 @@
 
 ![Fog of War screenshot](FogOfWarScreenshot.png)
 
-A small Slay the Spire 2 mod that hides the act map.
+A small Slay the Spire 2 custom run modifier that hides the act map.
 
 ## What It Does
 
-At any moment, a map node is shown when **any** of these are true:
+When the **Fog of War** negative custom run modifier is enabled, a map node is shown when **any** of these are true:
 
 - It is the act **boss**.
 - It has already been **traveled**.
 - It is the player's **current** node.
-- It is an **immediate child** of the current node (a legal next step).
+- It is an **immediate child** of the current node, or any next-row node while free travel is active (a legal next step).
 - The player has not yet entered the map and the node is on **row 0** (so the first move is visible).
 
 Everything else — future rows, side branches, elite/shop/event markers further down the map — is hidden.
@@ -20,8 +20,10 @@ Path lines follow the same rule: a line between two nodes is only drawn when **b
 
 ## How It Works
 
-Fog of War is a code-only, Harmony-only mod. The whole feature is two source files:
+Fog of War is a Harmony-only custom run modifier. The core feature is four source files:
 
+- [Code/Modifiers/FogOfWar.cs](Code/Modifiers/FogOfWar.cs) - negative custom run modifier model.
+- [Code/Patches/BadModifiersPatch.cs](Code/Patches/BadModifiersPatch.cs) - adds Fog of War to the negative custom run modifier list.
 - [Code/ModEntry.cs](Code/ModEntry.cs) — mod entry point, applies Harmony patches on load.
 - [Code/Patches/MapFogPatches.cs](Code/Patches/MapFogPatches.cs) — the visibility rule (`FogVisibility.ShouldShow`) and three patches:
   - `NMapPoint.RefreshState` — hides non-visible node visuals.
@@ -30,7 +32,7 @@ Fog of War is a code-only, Harmony-only mod. The whole feature is two source fil
 
 The visibility check reaches into private game state via `AccessTools.FieldRefAccess`:
 
-- `NMapScreen._runState`
+- `NMapPoint._runState`
 - `NMapScreen._paths`
 - `NMapScreen._mapPointDictionary`
 
@@ -38,7 +40,7 @@ The visibility check reaches into private game state via `AccessTools.FieldRefAc
 
 ## Assets
 
-Fog of War is currently **code-only**. The `FogOfWar/images/` and `FogOfWar/localization/eng/` folders exist (Godot project scaffolding) but are empty. No icons, no strings, no VFX.
+Fog of War uses `mod_image.png` as its modifier icon and adds English strings in `FogOfWar/localization/eng/modifiers.json`. No custom VFX are included.
 
 ## Building
 

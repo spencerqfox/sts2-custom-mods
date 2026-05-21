@@ -19,7 +19,7 @@ Friend Trading is a Harmony mod with no custom game scenes:
 - [Code/Patches/RestSiteTradeOptionPatches.cs](Code/Patches/RestSiteTradeOptionPatches.cs) appends the two rest-site options in multiplayer and clears stale pending trades when a rest site begins.
 - [Code/RestSite](Code/RestSite) contains the option implementations, target selection, and reciprocal trade coordinator.
 
-The implementation uses the base game's multiplayer-safe `PlayerChoiceSynchronizer`, `CardSelectCmd.FromDeckGeneric`, `RelicSelectCmd.FromChooseARelicScreen`, `CardPileCmd`, and `RelicCmd` APIs.
+The implementation uses the base game's multiplayer-safe `PlayerChoiceSynchronizer`, `CardSelectCmd.FromDeckGeneric`, a scrollable FriendTrading relic selector, `CardPileCmd`, and `RelicCmd` APIs.
 
 ## Building
 

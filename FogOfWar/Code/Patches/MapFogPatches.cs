@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using Godot;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.Hooks;
 using MegaCrit.Sts2.Core.Map;
 using MegaCrit.Sts2.Core.Nodes.Screens.Map;
 using MegaCrit.Sts2.Core.Runs;
+using FogOfWarModifier = global::FogOfWar.Modifiers.FogOfWar;
 
 namespace FogOfWar;
 
@@ -18,7 +20,25 @@ internal static class FogVisibility
     public static readonly AccessTools.FieldRef<NMapScreen, Dictionary<MapCoord, NMapPoint>> MapPointDictRef =
         AccessTools.FieldRefAccess<NMapScreen, Dictionary<MapCoord, NMapPoint>>("_mapPointDictionary");
 
-    public static bool ShouldShow(NMapPoint node, IRunState? runState)
+    public static bool IsEnabled(IRunState? runState)
+    {
+        if (runState == null)
+        {
+            return false;
+        }
+
+        foreach (var modifier in runState.Modifiers)
+        {
+            if (modifier is FogOfWarModifier)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static bool ShouldShow(NMapPoint node, IRunState runState)
     {
         MapPoint point = node.Point;
 
@@ -32,11 +52,6 @@ internal static class FogVisibility
             return true;
         }
 
-        if (runState == null)
-        {
-            return true;
-        }
-
         MapPoint? current = runState.CurrentMapPoint;
         if (current == null)
         {
@@ -44,6 +59,11 @@ internal static class FogVisibility
         }
 
         if (point.coord == current.coord)
+        {
+            return true;
+        }
+
+        if (Hook.ShouldAllowFreeTravel(runState) && point.coord.row == current.coord.row + 1)
         {
             return true;
         }
@@ -62,7 +82,13 @@ public static class NMapPoint_RefreshState_Patch
 {
     public static void Postfix(NMapPoint __instance)
     {
-        __instance.Visible = FogVisibility.ShouldShow(__instance, FogVisibility.RunStateRef(__instance));
+        IRunState? runState = FogVisibility.RunStateRef(__instance);
+        if (runState == null || !FogVisibility.IsEnabled(runState))
+        {
+            return;
+        }
+
+        __instance.Visible = FogVisibility.ShouldShow(__instance, runState);
     }
 }
 
@@ -71,7 +97,13 @@ public static class NNormalMapPoint_Ready_Patch
 {
     public static void Postfix(NNormalMapPoint __instance)
     {
-        __instance.Visible = FogVisibility.ShouldShow(__instance, FogVisibility.RunStateRef(__instance));
+        IRunState? runState = FogVisibility.RunStateRef(__instance);
+        if (runState == null || !FogVisibility.IsEnabled(runState))
+        {
+            return;
+        }
+
+        __instance.Visible = FogVisibility.ShouldShow(__instance, runState);
     }
 }
 
@@ -98,6 +130,11 @@ public static class NMapScreen_RecalculateTravelability_Patch
             }
 
             IRunState? runState = FogVisibility.RunStateRef(fromNode);
+            if (runState == null || !FogVisibility.IsEnabled(runState))
+            {
+                return;
+            }
+
             bool visible = FogVisibility.ShouldShow(fromNode, runState)
                            && FogVisibility.ShouldShow(toNode, runState);
 

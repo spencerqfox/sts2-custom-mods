@@ -14,20 +14,22 @@ internal static class RestSiteOptionGeneratePatch
     [HarmonyPostfix]
     private static void Postfix(Player player, List<RestSiteOption> __result)
     {
-        if (player.RunState.Players.Count < 2 || !player.Creature.IsAlive)
+        if (player.RunState.Players.Count < 2)
         {
             return;
         }
 
-        if (player.Deck.Cards.Any(FriendCardTradeRestSiteOption.CanTradeCard))
+        if (player.Creature.IsAlive && player.Deck.Cards.Any(FriendCardTradeRestSiteOption.CanTradeCard))
         {
             __result.Add(new FriendCardTradeRestSiteOption(player));
         }
 
-        if (player.Relics.Any(FriendRelicTradeRestSiteOption.CanTradeRelic))
+        if (player.Creature.IsAlive && player.Relics.Any(FriendRelicTradeRestSiteOption.CanTradeRelic))
         {
             __result.Add(new FriendRelicTradeRestSiteOption(player));
         }
+
+        FriendTradeCoordinator.SyncAvailabilityFromOptions(player, __result);
     }
 }
 

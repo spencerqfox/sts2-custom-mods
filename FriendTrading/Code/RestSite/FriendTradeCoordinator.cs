@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Entities.RestSite;
+using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
+using MegaCrit.Sts2.Core.Runs;
 
 namespace FriendTrading.RestSite;
 
@@ -39,6 +42,11 @@ internal static class FriendTradeCoordinator
 
         canceled?.Resolve(false);
         return canceled != null;
+    }
+
+    public static void SyncAvailabilityFromOptions(Player player, IReadOnlyList<RestSiteOption> options)
+    {
+        ResolveCanceled(MarkUnavailableKindsMissingFromOptions(player.NetId, options));
     }
 
     public static Task<bool> Submit(FriendTradeOffer offer, out bool isPending)
@@ -100,11 +108,34 @@ internal static class FriendTradeCoordinator
             return;
         }
 
+        TaskHelper.RunSafely(SyncAvailabilityAfterOptionsUpdate(playerId));
+    }
+
+    private static async Task SyncAvailabilityAfterOptionsUpdate(ulong playerId)
+    {
+        await Task.Yield();
+
+        IReadOnlyList<RestSiteOption> options = RunManager.Instance.RestSiteSynchronizer.GetOptionsForPlayer(playerId);
+        ResolveCanceled(MarkUnavailableKindsMissingFromOptions(playerId, options));
+    }
+
+    private static List<PendingTrade> MarkUnavailableKindsMissingFromOptions(ulong playerId, IReadOnlyList<RestSiteOption> options)
+    {
+        bool cardTradeAvailable = options.Any(option => option.OptionId == FriendCardTradeRestSiteOption.Id);
+        bool relicTradeAvailable = options.Any(option => option.OptionId == FriendRelicTradeRestSiteOption.Id);
         List<PendingTrade> canceled = new();
 
         lock (SyncRoot)
         {
-            MarkUnavailable(playerId);
+            if (!cardTradeAvailable)
+            {
+                UnavailablePlayers.Add((FriendTradeKind.Card, playerId));
+            }
+
+            if (!relicTradeAvailable)
+            {
+                UnavailablePlayers.Add((FriendTradeKind.Relic, playerId));
+            }
 
             foreach (var entry in PendingOffers)
             {
@@ -122,6 +153,11 @@ internal static class FriendTradeCoordinator
             }
         }
 
+        return canceled;
+    }
+
+    private static void ResolveCanceled(List<PendingTrade> canceled)
+    {
         foreach (PendingTrade pending in canceled)
         {
             pending.Resolve(false);
@@ -194,12 +230,6 @@ internal static class FriendTradeCoordinator
         {
             Log.Error($"[FriendTrading] Failed to restore source item: {ex}");
         }
-    }
-
-    private static void MarkUnavailable(ulong playerId)
-    {
-        UnavailablePlayers.Add((FriendTradeKind.Card, playerId));
-        UnavailablePlayers.Add((FriendTradeKind.Relic, playerId));
     }
 
     private static bool IsUnavailable(ulong playerId, FriendTradeKind kind)

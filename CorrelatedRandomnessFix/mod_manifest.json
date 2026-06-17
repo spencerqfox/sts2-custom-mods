@@ -1,0 +1,11 @@
+{
+  "id": "CorrelatedRandomnessFix",
+  "name": "Correlated Randomness Fix",
+  "author": "Spencer Fox",
+  "description": "Fixes correlated random number generation in the base game.",
+  "version": "0.0.1",
+  "has_pck": true,
+  "has_dll": true,
+  "dependencies": [],
+  "affects_gameplay": true
+}

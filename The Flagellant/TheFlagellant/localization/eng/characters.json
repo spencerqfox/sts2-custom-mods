@@ -1,0 +1,15 @@
+{
+  "THE_FLAGELLANT.title": "The Flagellant",
+  "THE_FLAGELLANT.titleObject": "the Flagellant",
+  "THE_FLAGELLANT.description": "A cursed character built around resilience and penance.",
+  "THE_FLAGELLANT.pronounObject": "them",
+  "THE_FLAGELLANT.possessiveAdjective": "their",
+  "THE_FLAGELLANT.pronounPossessive": "theirs",
+  "THE_FLAGELLANT.pronounSubject": "they",
+  "THE_FLAGELLANT.cardsModifierTitle": "The Flagellant Cards",
+  "THE_FLAGELLANT.cardsModifierDescription": "Adds cards from The Flagellant's card pool to rewards.",
+  "THE_FLAGELLANT.eventDeathPrevention": "The Flagellant refuses to yield.",
+  "THE_FLAGELLANT.unlockText": "Available by default while this mod is enabled.",
+  "THE_FLAGELLANT.goldMonologue": "They weigh the coins against their conscience. Every coin is a lash they have not yet earned.",
+  "THE_FLAGELLANT.aromaPrinciple": "Order is a discipline, like the scourge. They impose it upon themselves, and upon all that they carry."
+}

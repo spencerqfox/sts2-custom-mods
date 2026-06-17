@@ -1,0 +1,8 @@
+{
+  "THEFLAGELLANT-HOLY_WATER.title": "Holy Water",
+  "THEFLAGELLANT-HOLY_WATER.description": "Gain {ResiliencePower} Resilience.",
+  "THEFLAGELLANT-VIAL_OF_GALL.title": "Vial of Gall",
+  "THEFLAGELLANT-VIAL_OF_GALL.description": "Apply {PenancePower} Penance.",
+  "THEFLAGELLANT-BOTTLED_SIN.title": "Bottled Sin",
+  "THEFLAGELLANT-BOTTLED_SIN.description": "Choose 1 of {Cards} Curses to add to your hand."
+}

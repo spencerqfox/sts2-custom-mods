@@ -1,0 +1,11 @@
+{
+  "id": "TheFlagellant",
+  "name": "The Flagellant",
+  "author": "Spencer Fox",
+  "description": "Adds The Flagellant as a custom playable character scaffold.",
+  "version": "0.0.1",
+  "has_pck": true,
+  "has_dll": true,
+  "dependencies": [],
+  "affects_gameplay": true
+}

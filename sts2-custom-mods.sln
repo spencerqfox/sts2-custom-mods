@@ -16,6 +16,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FriendTrading", "FriendTrad
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RandomCharacterCustomMode", "RandomCharacterCustomMode\RandomCharacterCustomMode.csproj", "{047801D8-AD01-42EB-B6AF-1294046945D9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheFlagellant", "The Flagellant\TheFlagellant.csproj", "{7B8135EF-2F7B-4A62-9A8E-7D1B9204335A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CorrelatedRandomnessFix", "CorrelatedRandomnessFix\CorrelatedRandomnessFix.csproj", "{88FB6073-6FBD-471E-A963-80C87B1F2837}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".tmp", ".tmp", "{8171D0AE-4262-3EAB-52BD-BB021CE126C4}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModTemplate", ".tmp\ModTemplate\ModTemplate.csproj", "{B2B0A7C9-8CCC-FFBD-422E-EDDD56298044}"
@@ -54,6 +58,14 @@ Global
 		{047801D8-AD01-42EB-B6AF-1294046945D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{047801D8-AD01-42EB-B6AF-1294046945D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{047801D8-AD01-42EB-B6AF-1294046945D9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7B8135EF-2F7B-4A62-9A8E-7D1B9204335A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B8135EF-2F7B-4A62-9A8E-7D1B9204335A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B8135EF-2F7B-4A62-9A8E-7D1B9204335A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B8135EF-2F7B-4A62-9A8E-7D1B9204335A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88FB6073-6FBD-471E-A963-80C87B1F2837}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88FB6073-6FBD-471E-A963-80C87B1F2837}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88FB6073-6FBD-471E-A963-80C87B1F2837}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88FB6073-6FBD-471E-A963-80C87B1F2837}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B2B0A7C9-8CCC-FFBD-422E-EDDD56298044}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B2B0A7C9-8CCC-FFBD-422E-EDDD56298044}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B2B0A7C9-8CCC-FFBD-422E-EDDD56298044}.Release|Any CPU.ActiveCfg = Release|Any CPU

@@ -1,6 +1,6 @@
 # sts2-custom-mods
 
-Personal repo of Slay the Spire 2 gameplay mods. Seven mods live here today: **Fog of War**, **Frozen Hand**, **Door Remaker**, **Heavy Enchantment**, **Neow Custom Mode**, **Random Character Custom Mode**, and **Friend Trading**. All are DLL + PCK mods built against Godot 4.5.1 Mono.
+Personal repo of Slay the Spire 2 gameplay mods. Nine mods live here today: **Fog of War**, **Frozen Hand**, **Door Remaker**, **Heavy Enchantment**, **Neow Custom Mode**, **Random Character Custom Mode**, **Friend Trading**, **The Flagellant**, and **Correlated Randomness Fix**. All are DLL + PCK mods built against Godot 4.5.1 Mono.
 
 ## Mods
 
@@ -42,19 +42,31 @@ Adds the standard **Random** character button to custom runs and lets the game's
 
 Adds reciprocal multiplayer **Trade Card** and **Trade Relic** options at rest sites. Card trades exchange removable deck cards. Relic trades use the game's tradability rules and reject relics with on-pickup effects. See [FriendTrading/README.md](FriendTrading/README.md).
 
+### The Flagellant
+
+![The Flagellant](The%20Flagellant/images/characters/flagellantcharacterselect.png)
+
+Adds **The Flagellant**, a custom playable character: a cursed, flail-wielding penitent built around resilience and penance, with their own card pool, powers, and starter relic. See [The Flagellant/README.md](The%20Flagellant/README.md).
+
+### Correlated Randomness Fix
+
+Decorrelates the base game's `System.Random`-backed RNG streams by nonlinearly mixing each `Rng` seed before constructing `System.Random`. The game seeds streams as `seed + hash(name)`, leaving them mathematically related; seed mixing breaks that direct additive relationship while preserving the game's save/load counter model. See [CorrelatedRandomnessFix/README.md](CorrelatedRandomnessFix/README.md).
+
 ## Repo Layout
 
 ```text
 sts2-custom-mods/
-|-- sts2-custom-mods.sln     # solution (also refs .tmp/ModTemplate, gitignored)
-|-- .env.example             # template for repo-root .env (GODOT_EXE)
-|-- DoorRemaker/             # Door Remaker mod scaffold
-|-- FogOfWar/                # Fog of War mod
-|-- FrozenHand/              # Frozen Hand mod
-|-- HeavyEnchantment/        # Heavy Enchantment mod
-|-- NeowCustomMode/          # Neow Custom Mode mod
-|-- FriendTrading/           # Friend Trading mod
-`-- RandomCharacterCustomMode/ # Random Character Custom Mode mod
+|-- sts2-custom-mods.sln       # solution (also refs .tmp/ModTemplate, gitignored)
+|-- .env.example               # template for repo-root .env (GODOT_EXE)
+|-- CorrelatedRandomnessFix/   # Correlated Randomness Fix mod
+|-- DoorRemaker/               # Door Remaker mod scaffold
+|-- FogOfWar/                  # Fog of War mod
+|-- FriendTrading/             # Friend Trading mod
+|-- FrozenHand/                # Frozen Hand mod
+|-- HeavyEnchantment/          # Heavy Enchantment mod
+|-- NeowCustomMode/            # Neow Custom Mode mod
+|-- RandomCharacterCustomMode/ # Random Character Custom Mode mod
+`-- "The Flagellant"/          # The Flagellant custom character mod
 ```
 
 ## Toolchain

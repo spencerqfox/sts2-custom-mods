@@ -172,7 +172,7 @@ public sealed class BloodiedBandages : RelicModel
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new BlockVar(2m, ValueProp.Unpowered)
+        new BlockVar(3m, ValueProp.Unpowered)
     };
 
     public override async Task AfterPowerAmountChanged(PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)

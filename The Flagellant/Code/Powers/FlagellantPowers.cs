@@ -175,7 +175,7 @@ public sealed class CondescendPower : PowerModel
 
     public override async Task AfterTurnEnd(PlayerChoiceContext choiceContext, CombatSide side)
     {
-        if (side == Owner.Side)
+        if (side != Owner.Side)
         {
             await PowerCmd.Remove(this);
         }

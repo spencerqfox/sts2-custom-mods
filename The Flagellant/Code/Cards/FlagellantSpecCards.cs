@@ -74,7 +74,7 @@ public sealed class Brace : FlagellantCard
     };
 
     public Brace()
-        : base(1, CardType.Skill, CardRarity.Basic, TargetType.AnyEnemy)
+        : base(0, CardType.Skill, CardRarity.Basic, TargetType.AnyEnemy)
     {
     }
 
@@ -676,7 +676,7 @@ public sealed class Devotion : FlagellantCard
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new BlockVar(3m, ValueProp.Move),
+        new BlockVar(5m, ValueProp.Move),
         new PowerVar<PenancePower>(1m),
         new CardsVar(1)
     };
@@ -718,6 +718,11 @@ public sealed class Judgement : FlagellantCard
         {
             await PowerCmd.ModifyAmount(power, DynamicVars["Debuffs"].BaseValue, Owner.Creature, this);
         }
+    }
+
+    protected override void OnUpgrade()
+    {
+        DynamicVars["Debuffs"].UpgradeValueBy(1m);
     }
 }
 
@@ -763,7 +768,7 @@ public sealed class Mortify : FlagellantCard
     };
 
     public Mortify()
-        : base(2, CardType.Skill, CardRarity.Common, TargetType.AllEnemies)
+        : base(1, CardType.Skill, CardRarity.Common, TargetType.AllEnemies)
     {
     }
 
@@ -1023,6 +1028,11 @@ public sealed class SharedSuffering : FlagellantCard
     {
         await PowerCmd.Apply<SharedSufferingPower>(Owner.Creature, 1m, Owner.Creature, this);
     }
+
+    protected override void OnUpgrade()
+    {
+        EnergyCost.UpgradeBy(-1);
+    }
 }
 
 public sealed class CloakOfSins : FlagellantCard
@@ -1067,7 +1077,7 @@ public sealed class Renounce : FlagellantCard
     };
 
     public Renounce()
-        : base(1, CardType.Skill, CardRarity.Uncommon, TargetType.Self)
+        : base(0, CardType.Skill, CardRarity.Uncommon, TargetType.Self)
     {
     }
 
@@ -1180,6 +1190,11 @@ public sealed class Mania : FlagellantCard
         }
 
         await PowerCmd.Apply<NoDrawPower>(Owner.Creature, 1m, Owner.Creature, this);
+    }
+
+    protected override void OnUpgrade()
+    {
+        DynamicVars.Block.UpgradeValueBy(3m);
     }
 }
 
@@ -1298,6 +1313,11 @@ public sealed class Indignation : FlagellantCard
     {
         await FlagellantCardHelpers.GainPenance(this, DynamicVars["PenancePower"].BaseValue);
         await PowerCmd.Apply<StrengthPower>(Owner.Creature, ((CalculatedVar)DynamicVars["StrengthAmount"]).Calculate(cardPlay.Target), Owner.Creature, this);
+    }
+
+    protected override void OnUpgrade()
+    {
+        DynamicVars["PenancePower"].UpgradeValueBy(1m);
     }
 }
 
@@ -1720,6 +1740,8 @@ public sealed class Condescend : FlagellantCard
         await CreatureCmd.GainBlock(Owner.Creature, DynamicVars.Block, cardPlay);
         await PowerCmd.Apply<CondescendPower>(Owner.Creature, 1m, Owner.Creature, this);
     }
+
+    protected override void OnUpgrade() => DynamicVars.Block.UpgradeValueBy(3m);
 }
 
 public sealed class Mutter : FlagellantCard
@@ -1926,6 +1948,8 @@ public sealed class Anathema : FlagellantCard
     {
         await PowerCmd.Apply<AnathemaPower>(Owner.Creature, 1m, Owner.Creature, this);
     }
+
+    protected override void OnUpgrade() => EnergyCost.UpgradeBy(-1);
 }
 
 public sealed class Redemption : FlagellantCard
@@ -1977,8 +2001,10 @@ public sealed class Reckoning : FlagellantCard
             await PowerCmd.ModifyAmount(penance, -penance.Amount, Owner.Creature, this);
         }
 
-        await FlagellantCardHelpers.DealAttackAll(this, choiceContext, removed * 2);
+        await FlagellantCardHelpers.DealAttackAll(this, choiceContext, removed * DynamicVars.ExtraDamage.BaseValue);
     }
+
+    protected override void OnUpgrade() => DynamicVars.ExtraDamage.UpgradeValueBy(1m);
 }
 
 public sealed class Exaltation : FlagellantCard
@@ -1991,6 +2017,8 @@ public sealed class Exaltation : FlagellantCard
     {
         await PowerCmd.Apply<ExaltationPower>(Owner.Creature, 1m, Owner.Creature, this);
     }
+
+    protected override void OnUpgrade() => AddKeyword(CardKeyword.Retain);
 }
 
 public sealed class CrownOfThorns : FlagellantCard
@@ -2027,6 +2055,8 @@ public sealed class Martyr : FlagellantCard
     {
         await PowerCmd.Apply<MartyrPower>(Owner.Creature, 1m, Owner.Creature, this);
     }
+
+    protected override void OnUpgrade() => EnergyCost.UpgradeBy(-1);
 }
 
 public sealed class Smite : FlagellantCard
@@ -2128,6 +2158,8 @@ public sealed class Vow : FlagellantCard
     {
         await FlagellantCardHelpers.GainResilience(this, DynamicVars["ResiliencePower"].BaseValue);
     }
+
+    protected override void OnUpgrade() => DynamicVars["ResiliencePower"].UpgradeValueBy(1m);
 }
 
 public sealed class Proselytize : FlagellantCard
@@ -2172,6 +2204,11 @@ public sealed class Consumption : FlagellantCard
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
         await PowerCmd.Apply<ConsumptionPower>(Owner.Creature, 1m, Owner.Creature, this);
+    }
+
+    protected override void OnUpgrade()
+    {
+        // ConsumptionPower checks IsUpgraded to move damage to enemy turn start.
     }
 }
 

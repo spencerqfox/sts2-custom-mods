@@ -30,7 +30,7 @@
   "THEFLAGELLANT-LAMENT.title": "Lament",
   "THEFLAGELLANT-LAMENT.description": "Deal {Damage:diff()} damage to all enemies. Gain {PenancePower} [gold]Penance[/gold].",
   "THEFLAGELLANT-CONFESSION.title": "Confession",
-  "THEFLAGELLANT-CONFESSION.description": "Gain {PenancePower} [gold]Penance[/gold]. Apply [gold]Penance[/gold] equal to your [gold]Penance[/gold]{IfUpgraded:show: plus {Bonus:diff()}|}.",
+  "THEFLAGELLANT-CONFESSION.description": "Gain {PenancePower} [gold]Penance[/gold]. Apply [gold]Penance[/gold] equal to {IfUpgraded:show:twice your|your} [gold]Penance[/gold].",
   "THEFLAGELLANT-FERVOR.title": "Fervor",
   "THEFLAGELLANT-FERVOR.description": "Gain {Stats:diff()} [gold]Strength[/gold] and {Stats:diff()} [gold]Dexterity[/gold] until end of turn.",
   "THEFLAGELLANT-TOUGH_SKIN.title": "Tough Skin",

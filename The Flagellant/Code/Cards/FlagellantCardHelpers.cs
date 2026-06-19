@@ -276,18 +276,7 @@ internal static class FlagellantCardHelpers
 
     public static int CountResilienceLostThisTurn(Creature creature)
     {
-        ICombatState? combatState = creature.CombatState;
-        if (combatState == null)
-        {
-            return 0;
-        }
-
-        return (int)Math.Abs(CombatManager.Instance.History.Entries.OfType<PowerReceivedEntry>()
-            .Where(entry => entry.HappenedThisTurn(combatState) &&
-                entry.Actor == creature &&
-                entry.Power is ResiliencePower &&
-                entry.Amount < 0m)
-            .Sum(entry => entry.Amount));
+        return creature.GetPower<LostResilienceThisTurnPower>()?.Amount ?? 0;
     }
 
     public static bool WasAppliedByPlayer(PowerModel power, Player player)

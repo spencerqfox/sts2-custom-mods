@@ -390,8 +390,7 @@ public sealed class Confession : FlagellantCard
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new PowerVar<PenancePower>(2m),
-        new DynamicVar("Bonus", 0m)
+        new PowerVar<PenancePower>(2m)
     };
 
     public Confession()
@@ -403,12 +402,13 @@ public sealed class Confession : FlagellantCard
     {
         ArgumentNullException.ThrowIfNull(cardPlay.Target);
         await FlagellantCardHelpers.GainPenance(choiceContext, this, DynamicVars["PenancePower"].BaseValue);
-        await FlagellantCardHelpers.ApplyPenance(choiceContext, this, cardPlay.Target, FlagellantCardHelpers.PenanceOn(Owner.Creature) + DynamicVars["Bonus"].BaseValue);
+        decimal multiplier = IsUpgraded ? 2m : 1m;
+        await FlagellantCardHelpers.ApplyPenance(choiceContext, this, cardPlay.Target, FlagellantCardHelpers.PenanceOn(Owner.Creature) * multiplier);
     }
 
     protected override void OnUpgrade()
     {
-        DynamicVars["Bonus"].UpgradeValueBy(2m);
+        // Confession checks IsUpgraded to double the copied Penance.
     }
 }
 

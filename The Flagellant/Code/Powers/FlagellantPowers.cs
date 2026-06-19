@@ -34,9 +34,9 @@ public sealed class ResiliencePower : PowerModel
         out decimal modifiedAmount)
     {
         // Block self-inflicted debuffs (applier == Owner) and curse-inflicted debuffs
-        // (curses apply with a null applier, e.g. Doubt/Shame). Enemy-applied debuffs
-        // use the enemy creature as the applier, so they remain unblocked.
-        if (target != Owner || (applier != Owner && applier != null) ||
+        // (curses apply with a null applier, e.g. Doubt/Shame). Knowledge Demon choice
+        // cards also use the owner as applier, but are boss debuffs and should land.
+        if (target != Owner || IsKnowledgeDemonChoicePower(canonicalPower) || (applier != Owner && applier != null) ||
             canonicalPower.GetTypeForAmount(amount) != PowerType.Debuff ||
             !canonicalPower.IsVisible)
         {
@@ -48,9 +48,36 @@ public sealed class ResiliencePower : PowerModel
         return true;
     }
 
+    private static bool IsKnowledgeDemonChoicePower(PowerModel power)
+    {
+        return power is DisintegrationPower or MindRotPower or SlothPower or WasteAwayPower;
+    }
+
     public override async Task AfterModifyingPowerAmountReceived(PowerModel power)
     {
         await PowerCmd.Decrement(this);
+    }
+
+    public override async Task AfterPowerAmountChanged(PlayerChoiceContext choiceContext, PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
+    {
+        if (power == this && amount < 0m)
+        {
+            await PowerCmd.Apply<LostResilienceThisTurnPower>(choiceContext, Owner, -amount, null, null, silent: true);
+        }
+    }
+}
+
+public sealed class LostResilienceThisTurnPower : PowerModel
+{
+    public override PowerType Type => PowerType.Buff;
+
+    public override PowerStackType StackType => PowerStackType.Counter;
+
+    protected override bool IsVisibleInternal => false;
+
+    public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
+    {
+        await PowerCmd.Remove(this);
     }
 }
 
@@ -389,14 +416,14 @@ public sealed class ConvictionPower : PowerModel
 {
     public override PowerType Type => PowerType.Buff;
 
-    public override PowerStackType StackType => PowerStackType.Single;
+    public override PowerStackType StackType => PowerStackType.Counter;
 
     public override async Task AfterPowerAmountChanged(PlayerChoiceContext choiceContext, PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
     {
         if (power is ResiliencePower && power.Owner == Owner && amount > 0m)
         {
             Flash();
-            await PlayerCmd.GainEnergy(1m, Owner.Player);
+            await PlayerCmd.GainEnergy(Amount, Owner.Player);
         }
     }
 }
@@ -405,7 +432,7 @@ public sealed class CompulsionPower : PowerModel
 {
     public override PowerType Type => PowerType.Buff;
 
-    public override PowerStackType StackType => PowerStackType.Single;
+    public override PowerStackType StackType => PowerStackType.Counter;
 
     public override async Task BeforeSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
     {
@@ -414,17 +441,20 @@ public sealed class CompulsionPower : PowerModel
             return;
         }
 
-        List<CardModel> skills = PileType.Hand.GetPile(Owner.Player).Cards
-            .Where(c => c.Type == CardType.Skill && !c.Keywords.Contains(CardKeyword.Unplayable))
-            .ToList();
-        CardModel? skill = skills.Count == 0 ? null : Owner.Player.RunState.Rng.CombatCardSelection.NextItem(skills);
-        if (skill == null)
+        for (int i = 0; i < Amount; i++)
         {
-            return;
-        }
+            List<CardModel> skills = PileType.Hand.GetPile(Owner.Player).Cards
+                .Where(c => c.Type == CardType.Skill && !c.Keywords.Contains(CardKeyword.Unplayable))
+                .ToList();
+            CardModel? skill = skills.Count == 0 ? null : Owner.Player.RunState.Rng.CombatCardSelection.NextItem(skills);
+            if (skill == null)
+            {
+                return;
+            }
 
-        Flash();
-        await CardCmd.AutoPlay(choiceContext, skill, null);
+            Flash();
+            await CardCmd.AutoPlay(choiceContext, skill, null);
+        }
     }
 }
 

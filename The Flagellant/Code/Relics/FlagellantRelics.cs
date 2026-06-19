@@ -31,7 +31,7 @@ public sealed class HallowedRosary : RelicModel
     public override async Task BeforeCombatStart()
     {
         Flash();
-        await PowerCmd.Apply<ResiliencePower>(Owner.Creature, DynamicVars["ResiliencePower"].BaseValue, Owner.Creature, null);
+        await PowerCmd.Apply<ResiliencePower>(new ThrowingPlayerChoiceContext(), Owner.Creature, DynamicVars["ResiliencePower"].BaseValue, Owner.Creature, null);
     }
 }
 
@@ -47,7 +47,7 @@ public sealed class DuVuDoll : RelicModel
         if (curses > 0)
         {
             Flash();
-            await PowerCmd.Apply<StrengthPower>(Owner.Creature, curses, Owner.Creature, null);
+            await PowerCmd.Apply<StrengthPower>(new ThrowingPlayerChoiceContext(), Owner.Creature, curses, Owner.Creature, null);
         }
     }
 }
@@ -126,7 +126,7 @@ public sealed class QuiltedVestment : RelicModel
         return Task.CompletedTask;
     }
 
-    public override async Task AfterPowerAmountChanged(PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
+    public override async Task AfterPowerAmountChanged(PlayerChoiceContext choiceContext, PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
     {
         if (power is not ResiliencePower || power.Owner != Owner.Creature || amount <= 0m)
         {
@@ -160,7 +160,7 @@ public sealed class InquisitorsSeal : RelicModel
     public override async Task BeforeCombatStart()
     {
         Flash();
-        await PowerCmd.Apply<PenancePower>(Owner.Creature.CombatState.HittableEnemies, DynamicVars["PenancePower"].BaseValue, Owner.Creature, null);
+        await PowerCmd.Apply<PenancePower>(new ThrowingPlayerChoiceContext(), Owner.Creature.CombatState.HittableEnemies, DynamicVars["PenancePower"].BaseValue, Owner.Creature, null);
     }
 }
 
@@ -175,7 +175,7 @@ public sealed class BloodiedBandages : RelicModel
         new BlockVar(3m, ValueProp.Unpowered)
     };
 
-    public override async Task AfterPowerAmountChanged(PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
+    public override async Task AfterPowerAmountChanged(PlayerChoiceContext choiceContext, PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
     {
         if (power is PenancePower && applier == Owner.Creature && amount > 0m)
         {
@@ -213,6 +213,6 @@ public sealed class Stigmata : RelicModel
 
         _triggeredThisCombat = true;
         Flash();
-        await PowerCmd.Apply<ResiliencePower>(Owner.Creature, DynamicVars["ResiliencePower"].BaseValue, Owner.Creature, null);
+        await PowerCmd.Apply<ResiliencePower>(choiceContext, Owner.Creature, DynamicVars["ResiliencePower"].BaseValue, Owner.Creature, null);
     }
 }

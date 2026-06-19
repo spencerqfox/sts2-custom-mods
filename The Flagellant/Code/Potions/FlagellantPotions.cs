@@ -36,7 +36,7 @@ public sealed class HolyWater : PotionModel
     protected override async Task OnUse(PlayerChoiceContext choiceContext, Creature? target)
     {
         AssertValidForTargetedPotion(target);
-        await PowerCmd.Apply<ResiliencePower>(target, DynamicVars["ResiliencePower"].BaseValue, Owner.Creature, null);
+        await PowerCmd.Apply<ResiliencePower>(choiceContext, target, DynamicVars["ResiliencePower"].BaseValue, Owner.Creature, null);
     }
 }
 
@@ -61,7 +61,7 @@ public sealed class VialOfGall : PotionModel
     protected override async Task OnUse(PlayerChoiceContext choiceContext, Creature? target)
     {
         AssertValidForTargetedPotion(target);
-        await PowerCmd.Apply<PenancePower>(target, DynamicVars["PenancePower"].BaseValue, Owner.Creature, null);
+        await PowerCmd.Apply<PenancePower>(choiceContext, target, DynamicVars["PenancePower"].BaseValue, Owner.Creature, null);
     }
 }
 
@@ -92,7 +92,7 @@ public sealed class BottledSin : PotionModel
         CardModel? selected = await CardSelectCmd.FromChooseACardScreen(choiceContext, options, Owner);
         if (selected != null)
         {
-            CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(selected, PileType.Hand, addedByPlayer: true));
+            CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(selected, PileType.Hand, Owner));
         }
     }
 }

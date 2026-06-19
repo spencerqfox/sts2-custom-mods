@@ -25,7 +25,7 @@ namespace TheFlagellant.Cards;
 
 internal static class FlagellantCardHelpers
 {
-    private readonly record struct PermanentCurseCreation(Player Owner, CombatState CombatState, int RoundNumber, CombatSide CurrentSide);
+    private readonly record struct PermanentCurseCreation(Player Owner, ICombatState CombatState, int RoundNumber, CombatSide CurrentSide);
 
     private static readonly List<PermanentCurseCreation> PermanentCurseCreations = new();
 
@@ -84,7 +84,7 @@ internal static class FlagellantCardHelpers
 
     public static async Task DamageAllEnemies(Player owner, decimal amount, ValueProp props, CardModel? cardSource, AbstractModel? source)
     {
-        CombatState? combatState = owner.Creature.CombatState;
+        ICombatState? combatState = owner.Creature.CombatState;
         if (combatState == null)
         {
             return;
@@ -111,19 +111,19 @@ internal static class FlagellantCardHelpers
             .Execute(choiceContext);
     }
 
-    public static async Task ApplyPenance(CardModel source, Creature target, decimal amount)
+    public static async Task ApplyPenance(PlayerChoiceContext choiceContext, CardModel source, Creature target, decimal amount)
     {
-        await PowerCmd.Apply<PenancePower>(target, amount, source.Owner.Creature, source);
+        await PowerCmd.Apply<PenancePower>(choiceContext, target, amount, source.Owner.Creature, source);
     }
 
-    public static async Task GainPenance(CardModel source, decimal amount)
+    public static async Task GainPenance(PlayerChoiceContext choiceContext, CardModel source, decimal amount)
     {
-        await PowerCmd.Apply<PenancePower>(source.Owner.Creature, amount, source.Owner.Creature, source);
+        await PowerCmd.Apply<PenancePower>(choiceContext, source.Owner.Creature, amount, source.Owner.Creature, source);
     }
 
-    public static async Task GainResilience(CardModel source, decimal amount)
+    public static async Task GainResilience(PlayerChoiceContext choiceContext, CardModel source, decimal amount)
     {
-        await PowerCmd.Apply<ResiliencePower>(source.Owner.Creature, amount, source.Owner.Creature, source);
+        await PowerCmd.Apply<ResiliencePower>(choiceContext, source.Owner.Creature, amount, source.Owner.Creature, source);
     }
 
     public static int PenanceOn(Creature creature)
@@ -136,7 +136,7 @@ internal static class FlagellantCardHelpers
         return creature.GetPower<ResiliencePower>()?.Amount ?? 0;
     }
 
-    public static async Task<CardModel?> AddCurseToCombat(CardModel source, PileType pileType)
+    public static async Task<CardModel?> AddCurseToCombat(PlayerChoiceContext choiceContext, CardModel source, PileType pileType)
     {
         CardModel? curse = CreateCurse(source);
         if (curse == null)
@@ -144,7 +144,7 @@ internal static class FlagellantCardHelpers
             return null;
         }
 
-        CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(curse, pileType, addedByPlayer: true));
+        CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(curse, pileType, source.Owner));
         return curse;
     }
 
@@ -168,7 +168,7 @@ internal static class FlagellantCardHelpers
 
     public static bool HasCurseCreatedThisTurn(Player owner)
     {
-        CombatState? combatState = owner.Creature.CombatState;
+        ICombatState? combatState = owner.Creature.CombatState;
         if (combatState == null)
         {
             return false;
@@ -177,7 +177,7 @@ internal static class FlagellantCardHelpers
         PermanentCurseCreations.RemoveAll(record => record.CombatState != combatState);
         return CombatManager.Instance.History.Entries.OfType<CardGeneratedEntry>()
             .Any(entry => entry.HappenedThisTurn(combatState) &&
-                entry.GeneratedByPlayer &&
+                entry.Creator == owner &&
                 entry.Card.Owner == owner &&
                 IsCurseLike(entry.Card, owner)) ||
             PermanentCurseCreations.Any(record =>
@@ -194,7 +194,7 @@ internal static class FlagellantCardHelpers
             return;
         }
 
-        CombatState? combatState = owner.Creature.CombatState;
+        ICombatState? combatState = owner.Creature.CombatState;
         if (combatState == null)
         {
             return;
@@ -261,7 +261,7 @@ internal static class FlagellantCardHelpers
         return creature.Powers.Count(power => power.TypeForCurrentAmount == PowerType.Debuff && power.Amount > 0);
     }
 
-    public static int CountDebuffsAppliedThisTurn(CombatState? combatState)
+    public static int CountDebuffsAppliedThisTurn(ICombatState? combatState)
     {
         if (combatState == null)
         {
@@ -276,7 +276,7 @@ internal static class FlagellantCardHelpers
 
     public static int CountResilienceLostThisTurn(Creature creature)
     {
-        CombatState? combatState = creature.CombatState;
+        ICombatState? combatState = creature.CombatState;
         if (combatState == null)
         {
             return 0;
@@ -299,22 +299,22 @@ internal static class FlagellantCardHelpers
                 entry.Amount > 0m);
     }
 
-    public static async Task ApplyRandomDebuff(CardModel source, Creature target, decimal amount)
+    public static async Task ApplyRandomDebuff(PlayerChoiceContext choiceContext, CardModel source, Creature target, decimal amount)
     {
         int index = source.Owner.RunState.Rng.CombatCardSelection.NextInt(4);
         switch (index)
         {
             case 0:
-                await PowerCmd.Apply<WeakPower>(target, amount, source.Owner.Creature, source);
+                await PowerCmd.Apply<WeakPower>(choiceContext, target, amount, source.Owner.Creature, source);
                 break;
             case 1:
-                await PowerCmd.Apply<FrailPower>(target, amount, source.Owner.Creature, source);
+                await PowerCmd.Apply<FrailPower>(choiceContext, target, amount, source.Owner.Creature, source);
                 break;
             case 2:
-                await PowerCmd.Apply<VulnerablePower>(target, amount, source.Owner.Creature, source);
+                await PowerCmd.Apply<VulnerablePower>(choiceContext, target, amount, source.Owner.Creature, source);
                 break;
             default:
-                await PowerCmd.Apply<PenancePower>(target, amount, source.Owner.Creature, source);
+                await PowerCmd.Apply<PenancePower>(choiceContext, target, amount, source.Owner.Creature, source);
                 break;
         }
     }

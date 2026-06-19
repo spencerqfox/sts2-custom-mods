@@ -6,7 +6,7 @@ using NeowCustomMode.Modifiers;
 
 namespace NeowCustomMode.Patches;
 
-[HarmonyPatch(typeof(ModelDb), "get_GoodModifiers")]
+[HarmonyPatch(typeof(ModelDb), nameof(ModelDb.GoodModifiers), MethodType.Getter)]
 public static class GoodModifiersPatch
 {
     public static void Postfix(ref IReadOnlyList<ModifierModel> __result)

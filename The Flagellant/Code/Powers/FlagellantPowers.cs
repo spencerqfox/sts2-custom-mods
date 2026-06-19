@@ -64,7 +64,7 @@ public sealed class NextTurnResiliencePower : PowerModel
     {
         if (player == Owner.Player)
         {
-            await PowerCmd.Apply<ResiliencePower>(Owner, Amount, Owner, null);
+            await PowerCmd.Apply<ResiliencePower>(new ThrowingPlayerChoiceContext(), Owner, Amount, Owner, null);
             await PowerCmd.Remove(this);
         }
     }
@@ -96,14 +96,14 @@ public sealed class FervorPower : PowerModel
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
-    public override async Task AfterTurnEnd(PlayerChoiceContext choiceContext, CombatSide side)
+    public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
     {
         if (side == Owner.Side)
         {
             Flash();
             await PowerCmd.Remove(this);
-            await PowerCmd.Apply<StrengthPower>(Owner, -Amount, Owner, null);
-            await PowerCmd.Apply<DexterityPower>(Owner, -Amount, Owner, null);
+            await PowerCmd.Apply<StrengthPower>(choiceContext, Owner, -Amount, Owner, null);
+            await PowerCmd.Apply<DexterityPower>(choiceContext, Owner, -Amount, Owner, null);
         }
     }
 }
@@ -114,7 +114,7 @@ public sealed class GritPower : PowerModel
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
-    public override async Task AfterPowerAmountChanged(PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
+    public override async Task AfterPowerAmountChanged(PlayerChoiceContext choiceContext, PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
     {
         if (power is PenancePower && power.Owner == Owner && amount > 0m)
         {
@@ -122,7 +122,7 @@ public sealed class GritPower : PowerModel
         }
     }
 
-    public override async Task AfterTurnEnd(PlayerChoiceContext choiceContext, CombatSide side)
+    public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
     {
         if (side == Owner.Side)
         {
@@ -147,7 +147,7 @@ public sealed class DeliriumPower : PowerModel
         return Amount;
     }
 
-    public override async Task AfterTurnEnd(PlayerChoiceContext choiceContext, CombatSide side)
+    public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
     {
         if (side == Owner.Side)
         {
@@ -173,7 +173,7 @@ public sealed class CondescendPower : PowerModel
         return 0.75m;
     }
 
-    public override async Task AfterTurnEnd(PlayerChoiceContext choiceContext, CombatSide side)
+    public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
     {
         if (side != Owner.Side)
         {
@@ -205,7 +205,7 @@ public sealed class ExaltationPower : PowerModel
         return false;
     }
 
-    public override async Task AfterTurnEnd(PlayerChoiceContext choiceContext, CombatSide side)
+    public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
     {
         if (side == Owner.Side)
         {
@@ -227,9 +227,9 @@ public sealed class RetributionPower : PowerModel
         new DamageVar(10m, ValueProp.Unpowered)
     };
 
-    public override async Task AfterCardGeneratedForCombat(CardModel card, bool addedByPlayer)
+    public override async Task AfterCardGeneratedForCombat(CardModel card, Player creator)
     {
-        if (!addedByPlayer || card.Owner != Owner.Player || !FlagellantCardHelpers.IsCurseLike(card, Owner.Player))
+        if (creator != Owner.Player || card.Owner != Owner.Player || !FlagellantCardHelpers.IsCurseLike(card, Owner.Player))
         {
             return;
         }
@@ -269,7 +269,7 @@ public sealed class WeakGripPower : PowerModel
         }
 
         CardModel clumsy = Owner.CombatState.CreateCard<Clumsy>(player);
-        CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(clumsy, PileType.Hand, addedByPlayer: true));
+        CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(clumsy, PileType.Hand, Owner.Player));
     }
 }
 
@@ -302,7 +302,7 @@ public sealed class SharedSufferingPower : PowerModel
 
     public override PowerStackType StackType => PowerStackType.Single;
 
-    public override async Task AfterPowerAmountChanged(PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
+    public override async Task AfterPowerAmountChanged(PlayerChoiceContext choiceContext, PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
     {
         if (power.Owner != Owner || amount <= 0m || power.TypeForCurrentAmount != PowerType.Debuff ||
             cardSource == null || !FlagellantCardHelpers.IsCurseLike(cardSource, Owner.Player))
@@ -313,7 +313,7 @@ public sealed class SharedSufferingPower : PowerModel
         foreach (Creature enemy in Owner.CombatState.HittableEnemies)
         {
             PowerModel copy = ModelDb.GetById<PowerModel>(power.Id).ToMutable();
-            await PowerCmd.Apply(copy, enemy, amount, Owner, null);
+            await PowerCmd.Apply(choiceContext, copy, enemy, amount, Owner, null);
         }
     }
 }
@@ -324,7 +324,7 @@ public sealed class SympathyPower : PowerModel
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
-    public override async Task AfterPowerAmountChanged(PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
+    public override async Task AfterPowerAmountChanged(PlayerChoiceContext choiceContext, PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
     {
         if (power is PenancePower && power.Owner == Owner && applier == Owner && amount > 0m)
         {
@@ -344,7 +344,7 @@ public sealed class DisciplinePower : PowerModel
     {
         if (player == Owner.Player)
         {
-            await PowerCmd.Apply<PenancePower>(Owner, Amount, Owner, null);
+            await PowerCmd.Apply<PenancePower>(choiceContext, Owner, Amount, Owner, null);
         }
     }
 }
@@ -355,7 +355,7 @@ public sealed class LucidityPower : PowerModel
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
-    public override async Task AfterPowerAmountChanged(PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
+    public override async Task AfterPowerAmountChanged(PlayerChoiceContext choiceContext, PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
     {
         if (power is PenancePower && applier == Owner && amount > 0m)
         {
@@ -371,7 +371,7 @@ public sealed class DefiancePower : PowerModel
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
-    public override async Task AfterPowerAmountChanged(PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
+    public override async Task AfterPowerAmountChanged(PlayerChoiceContext choiceContext, PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
     {
         if (power is ResiliencePower && power.Owner == Owner && amount > 0m)
         {
@@ -391,7 +391,7 @@ public sealed class ConvictionPower : PowerModel
 
     public override PowerStackType StackType => PowerStackType.Single;
 
-    public override async Task AfterPowerAmountChanged(PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
+    public override async Task AfterPowerAmountChanged(PlayerChoiceContext choiceContext, PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
     {
         if (power is ResiliencePower && power.Owner == Owner && amount > 0m)
         {
@@ -407,7 +407,7 @@ public sealed class CompulsionPower : PowerModel
 
     public override PowerStackType StackType => PowerStackType.Single;
 
-    public override async Task BeforeTurnEnd(PlayerChoiceContext choiceContext, CombatSide side)
+    public override async Task BeforeSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
     {
         if (side != Owner.Side)
         {
@@ -446,7 +446,7 @@ public sealed class FortitudePower : PowerModel
         if (cursesDrawnThisTurn == 1)
         {
             Flash();
-            await PowerCmd.Apply<ResiliencePower>(Owner, Amount, Owner, null);
+            await PowerCmd.Apply<ResiliencePower>(choiceContext, Owner, Amount, Owner, null);
         }
     }
 }
@@ -461,7 +461,7 @@ public sealed class PerseverancePower : PowerModel
     {
         if (player == Owner.Player)
         {
-            await PowerCmd.Apply<ResiliencePower>(Owner, Amount, Owner, null);
+            await PowerCmd.Apply<ResiliencePower>(choiceContext, Owner, Amount, Owner, null);
         }
     }
 }
@@ -492,14 +492,14 @@ public sealed class ManifestationPower : PowerModel
 
     public override async Task AfterApplied(Creature? applier, CardModel? cardSource)
     {
-        await SyncStatsToResilience();
+        await SyncStatsToResilience(new ThrowingPlayerChoiceContext());
     }
 
-    public override async Task AfterPowerAmountChanged(PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
+    public override async Task AfterPowerAmountChanged(PlayerChoiceContext choiceContext, PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
     {
         if (power is ResiliencePower && power.Owner == Owner)
         {
-            await SyncStatsToResilience();
+            await SyncStatsToResilience(choiceContext);
         }
     }
 
@@ -514,16 +514,16 @@ public sealed class ManifestationPower : PowerModel
         _dexContributed = 0;
         if (str != 0)
         {
-            await PowerCmd.Apply<StrengthPower>(oldOwner, -str, null, null, silent: true);
+            await PowerCmd.Apply<StrengthPower>(new ThrowingPlayerChoiceContext(), oldOwner, -str, null, null, silent: true);
         }
 
         if (dex != 0)
         {
-            await PowerCmd.Apply<DexterityPower>(oldOwner, -dex, null, null, silent: true);
+            await PowerCmd.Apply<DexterityPower>(new ThrowingPlayerChoiceContext(), oldOwner, -dex, null, null, silent: true);
         }
     }
 
-    private async Task SyncStatsToResilience()
+    private async Task SyncStatsToResilience(PlayerChoiceContext choiceContext)
     {
         if (_syncing)
         {
@@ -547,12 +547,12 @@ public sealed class ManifestationPower : PowerModel
             _dexContributed += dexDelta;
             if (strDelta != 0)
             {
-                await PowerCmd.Apply<StrengthPower>(Owner, strDelta, null, null, silent: true);
+                await PowerCmd.Apply<StrengthPower>(choiceContext, Owner, strDelta, null, null, silent: true);
             }
 
             if (dexDelta != 0)
             {
-                await PowerCmd.Apply<DexterityPower>(Owner, dexDelta, null, null, silent: true);
+                await PowerCmd.Apply<DexterityPower>(choiceContext, Owner, dexDelta, null, null, silent: true);
             }
         }
         finally
@@ -582,7 +582,7 @@ public sealed class ConsumptionPower : PowerModel
         return Task.CompletedTask;
     }
 
-    public override async Task AfterSideTurnStart(CombatSide side, CombatState combatState)
+    public override async Task AfterSideTurnStart(CombatSide side, IReadOnlyList<Creature> participants, ICombatState combatState)
     {
         if (_atTurnStart && side == CombatSide.Enemy)
         {
@@ -590,7 +590,7 @@ public sealed class ConsumptionPower : PowerModel
         }
     }
 
-    public override async Task AfterTurnEnd(PlayerChoiceContext choiceContext, CombatSide side)
+    public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
     {
         if (!_atTurnStart && side == CombatSide.Enemy)
         {
@@ -621,7 +621,7 @@ public sealed class TranscendentFormPower : PowerModel
     {
         if (dealer == Owner && cardSource?.Type == CardType.Attack && result.UnblockedDamage > 0)
         {
-            await PowerCmd.Apply<PenancePower>(target, result.UnblockedDamage * Amount, Owner, cardSource);
+            await PowerCmd.Apply<PenancePower>(choiceContext, target, result.UnblockedDamage * Amount, Owner, cardSource);
         }
     }
 }
@@ -701,6 +701,6 @@ public sealed class MartyrPower : PowerModel
         _redirectedPower = null;
         _redirectedAmount = 0m;
         _redirectedApplier = null;
-        await PowerCmd.Apply(redirectedPower, Owner, redirectedAmount, redirectedApplier, null);
+        await PowerCmd.Apply(new ThrowingPlayerChoiceContext(), redirectedPower, Owner, redirectedAmount, redirectedApplier, null);
     }
 }

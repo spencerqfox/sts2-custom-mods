@@ -41,7 +41,7 @@ public sealed class FrozenHandRelic : RelicModel
     [SavedProperty]
     public string FrozenHandStoredSnapshotJson { get; set; } = string.Empty;
 
-    public override async Task AfterCardGeneratedForCombat(CardModel card, bool addedByPlayer)
+    public override async Task AfterCardGeneratedForCombat(CardModel card, Player? creator)
     {
         if (!ShouldCreatePermanentDeckVersion(card))
         {
@@ -49,7 +49,7 @@ public sealed class FrozenHandRelic : RelicModel
         }
 
         var deckCard = Owner.RunState.LoadCard(card.ToSerializable(), Owner);
-        var addResult = await CardPileCmd.Add(deckCard, PileType.Deck, source: this, skipVisuals: true);
+        var addResult = await CardPileCmd.Add(deckCard, PileType.Deck, clonedBy: this, skipVisuals: true);
         if (!addResult.success)
         {
             Owner.RunState.RemoveCard(deckCard);

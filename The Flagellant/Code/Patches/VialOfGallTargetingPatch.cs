@@ -117,7 +117,7 @@ internal static class VialOfGallTargetingPatch
 
     private static void RestrictControllerNavigationToLivingCreatures(Creature owner)
     {
-        CombatState? combatState = owner.CombatState;
+        ICombatState? combatState = owner.CombatState;
         NCombatRoom? room = NCombatRoom.Instance;
         if (combatState == null || room == null)
         {

@@ -49,7 +49,7 @@ public sealed class Flog : FlagellantCard
         ArgumentNullException.ThrowIfNull(cardPlay.Target);
         await FlagellantCardHelpers.DealAttack(this, choiceContext, cardPlay.Target, DynamicVars.Damage.BaseValue);
         await CreatureCmd.GainBlock(Owner.Creature, DynamicVars.Block, cardPlay);
-        await FlagellantCardHelpers.GainPenance(this, DynamicVars["PenancePower"].BaseValue);
+        await FlagellantCardHelpers.GainPenance(choiceContext, this, DynamicVars["PenancePower"].BaseValue);
     }
 
     protected override void OnUpgrade()
@@ -80,10 +80,10 @@ public sealed class Brace : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await FlagellantCardHelpers.GainResilience(this, DynamicVars["ResiliencePower"].BaseValue);
+        await FlagellantCardHelpers.GainResilience(choiceContext, this, DynamicVars["ResiliencePower"].BaseValue);
         if (cardPlay.Target != null)
         {
-            await FlagellantCardHelpers.ApplyPenance(this, cardPlay.Target, DynamicVars["PenancePower"].BaseValue);
+            await FlagellantCardHelpers.ApplyPenance(choiceContext, this, cardPlay.Target, DynamicVars["PenancePower"].BaseValue);
         }
     }
 
@@ -121,8 +121,8 @@ public sealed class Flay : FlagellantCard
         ArgumentNullException.ThrowIfNull(cardPlay.Target);
         await FlagellantCardHelpers.DealAttack(this, choiceContext, cardPlay.Target, DynamicVars.Damage.BaseValue);
         await CreatureCmd.GainBlock(Owner.Creature, DynamicVars.Block, cardPlay);
-        await FlagellantCardHelpers.ApplyPenance(this, cardPlay.Target, DynamicVars["PenancePower"].BaseValue);
-        await FlagellantCardHelpers.GainPenance(this, DynamicVars["PenancePower"].BaseValue);
+        await FlagellantCardHelpers.ApplyPenance(choiceContext, this, cardPlay.Target, DynamicVars["PenancePower"].BaseValue);
+        await FlagellantCardHelpers.GainPenance(choiceContext, this, DynamicVars["PenancePower"].BaseValue);
     }
 
     protected override void OnUpgrade()
@@ -154,7 +154,7 @@ public sealed class Whiplash : FlagellantCard
         ArgumentNullException.ThrowIfNull(cardPlay.Target);
         await FlagellantCardHelpers.DealAttack(this, choiceContext, cardPlay.Target, DynamicVars.Damage.BaseValue);
         CardModel injury = CombatState.CreateCard<Injury>(Owner);
-        CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(injury, PileType.Hand, addedByPlayer: true));
+        CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(injury, PileType.Hand, Owner));
     }
 
     protected override void OnUpgrade()
@@ -187,7 +187,7 @@ public sealed class Vigilance : FlagellantCard
     {
         await CreatureCmd.GainBlock(Owner.Creature, DynamicVars.Block, cardPlay);
         CardModel poorSleep = CombatState.CreateCard<PoorSleep>(Owner);
-        CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(poorSleep, PileType.Hand, addedByPlayer: true));
+        CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(poorSleep, PileType.Hand, Owner));
     }
 
     protected override void OnUpgrade()
@@ -241,7 +241,7 @@ public sealed class Jinx : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await FlagellantCardHelpers.AddCurseToCombat(this, PileType.Draw);
+        await FlagellantCardHelpers.AddCurseToCombat(choiceContext, this, PileType.Draw);
         await PlayerCmd.GainEnergy(DynamicVars.Energy.BaseValue, Owner);
     }
 
@@ -273,7 +273,7 @@ public sealed class Indulgence : FlagellantCard
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
         await PlayerCmd.GainEnergy(DynamicVars.Energy.BaseValue, Owner);
-        await PowerCmd.Apply<LoseEnergyNextTurnPower>(Owner.Creature, DynamicVars["LoseEnergyNextTurnPower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<LoseEnergyNextTurnPower>(choiceContext, Owner.Creature, DynamicVars["LoseEnergyNextTurnPower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -306,7 +306,7 @@ public sealed class Sackcloth : FlagellantCard
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
         await CreatureCmd.GainBlock(Owner.Creature, DynamicVars.Block, cardPlay);
-        await FlagellantCardHelpers.GainPenance(this, DynamicVars["PenancePower"].BaseValue);
+        await FlagellantCardHelpers.GainPenance(choiceContext, this, DynamicVars["PenancePower"].BaseValue);
     }
 
     protected override void OnUpgrade()
@@ -337,7 +337,7 @@ public sealed class Flail : FlagellantCard
     {
         ArgumentNullException.ThrowIfNull(cardPlay.Target);
         await FlagellantCardHelpers.DealAttack(this, choiceContext, cardPlay.Target, DynamicVars.Damage.BaseValue);
-        await FlagellantCardHelpers.GainPenance(this, DynamicVars["PenancePower"].BaseValue);
+        await FlagellantCardHelpers.GainPenance(choiceContext, this, DynamicVars["PenancePower"].BaseValue);
     }
 
     protected override void OnUpgrade()
@@ -367,7 +367,7 @@ public sealed class Lament : FlagellantCard
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
         await FlagellantCardHelpers.DealAttackAll(this, choiceContext, DynamicVars.Damage.BaseValue);
-        await FlagellantCardHelpers.GainPenance(this, DynamicVars["PenancePower"].BaseValue);
+        await FlagellantCardHelpers.GainPenance(choiceContext, this, DynamicVars["PenancePower"].BaseValue);
     }
 
     protected override void OnUpgrade()
@@ -402,8 +402,8 @@ public sealed class Confession : FlagellantCard
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
         ArgumentNullException.ThrowIfNull(cardPlay.Target);
-        await FlagellantCardHelpers.GainPenance(this, DynamicVars["PenancePower"].BaseValue);
-        await FlagellantCardHelpers.ApplyPenance(this, cardPlay.Target, FlagellantCardHelpers.PenanceOn(Owner.Creature) + DynamicVars["Bonus"].BaseValue);
+        await FlagellantCardHelpers.GainPenance(choiceContext, this, DynamicVars["PenancePower"].BaseValue);
+        await FlagellantCardHelpers.ApplyPenance(choiceContext, this, cardPlay.Target, FlagellantCardHelpers.PenanceOn(Owner.Creature) + DynamicVars["Bonus"].BaseValue);
     }
 
     protected override void OnUpgrade()
@@ -433,9 +433,9 @@ public sealed class Fervor : FlagellantCard
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
         decimal stats = DynamicVars["Stats"].BaseValue;
-        await PowerCmd.Apply<StrengthPower>(Owner.Creature, stats, Owner.Creature, this);
-        await PowerCmd.Apply<DexterityPower>(Owner.Creature, stats, Owner.Creature, this);
-        await PowerCmd.Apply<FervorPower>(Owner.Creature, stats, Owner.Creature, this);
+        await PowerCmd.Apply<StrengthPower>(choiceContext, Owner.Creature, stats, Owner.Creature, this);
+        await PowerCmd.Apply<DexterityPower>(choiceContext, Owner.Creature, stats, Owner.Creature, this);
+        await PowerCmd.Apply<FervorPower>(choiceContext, Owner.Creature, stats, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -468,7 +468,7 @@ public sealed class ToughSkin : FlagellantCard
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
         await CreatureCmd.GainBlock(Owner.Creature, DynamicVars.Block, cardPlay);
-        await FlagellantCardHelpers.GainResilience(this, DynamicVars["ResiliencePower"].BaseValue);
+        await FlagellantCardHelpers.GainResilience(choiceContext, this, DynamicVars["ResiliencePower"].BaseValue);
     }
 
     protected override void OnUpgrade()
@@ -557,7 +557,7 @@ public sealed class Catharsis : FlagellantCard
     {
         ArgumentNullException.ThrowIfNull(cardPlay.Target);
         await FlagellantCardHelpers.DealAttack(this, choiceContext, cardPlay.Target, DynamicVars.Damage.BaseValue);
-        await PowerCmd.Apply<NextTurnResiliencePower>(Owner.Creature, DynamicVars["NextTurnResiliencePower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<NextTurnResiliencePower>(choiceContext, Owner.Creature, DynamicVars["NextTurnResiliencePower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -652,7 +652,7 @@ public sealed class Tribulation : FlagellantCard
         ArgumentNullException.ThrowIfNull(cardPlay.Target);
         for (int i = 0; i < DynamicVars["Debuffs"].IntValue; i++)
         {
-            await FlagellantCardHelpers.ApplyRandomDebuff(this, cardPlay.Target, 1m);
+            await FlagellantCardHelpers.ApplyRandomDebuff(choiceContext, this, cardPlay.Target, 1m);
         }
     }
 
@@ -689,7 +689,7 @@ public sealed class Devotion : FlagellantCard
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
         await CreatureCmd.GainBlock(Owner.Creature, DynamicVars.Block, cardPlay);
-        await FlagellantCardHelpers.GainPenance(this, DynamicVars["PenancePower"].BaseValue);
+        await FlagellantCardHelpers.GainPenance(choiceContext, this, DynamicVars["PenancePower"].BaseValue);
         await CardPileCmd.Draw(choiceContext, DynamicVars.Cards.BaseValue, Owner);
     }
 
@@ -716,7 +716,7 @@ public sealed class Judgement : FlagellantCard
     {
         foreach (PowerModel power in Owner.Creature.CombatState.Creatures.SelectMany(creature => creature.Powers).Where(power => power.TypeForCurrentAmount == PowerType.Debuff && FlagellantCardHelpers.WasAppliedByPlayer(power, Owner)).ToList())
         {
-            await PowerCmd.ModifyAmount(power, DynamicVars["Debuffs"].BaseValue, Owner.Creature, this);
+            await PowerCmd.ModifyAmount(choiceContext, power, DynamicVars["Debuffs"].BaseValue, Owner.Creature, this);
         }
     }
 
@@ -774,7 +774,7 @@ public sealed class Mortify : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<PenancePower>(CombatState.HittableEnemies, DynamicVars["PenancePower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<PenancePower>(choiceContext, CombatState.HittableEnemies, DynamicVars["PenancePower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -892,8 +892,8 @@ public sealed class Overreach : FlagellantCard
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
         await FlagellantCardHelpers.DealAttackAll(this, choiceContext, DynamicVars.Damage.BaseValue);
-        CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(CombatState.CreateCard<Clumsy>(Owner), PileType.Draw, addedByPlayer: true, CardPilePosition.Random));
-        CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(CombatState.CreateCard<Clumsy>(Owner), PileType.Discard, addedByPlayer: true));
+        CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(CombatState.CreateCard<Clumsy>(Owner), PileType.Draw, Owner, CardPilePosition.Random));
+        CardCmd.PreviewCardPileAdd(await CardPileCmd.AddGeneratedCardToCombat(CombatState.CreateCard<Clumsy>(Owner), PileType.Discard, Owner));
     }
 
     protected override void OnUpgrade()
@@ -946,7 +946,7 @@ public sealed class WeakGrip : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<WeakGripPower>(Owner.Creature, 1m, Owner.Creature, this);
+        await PowerCmd.Apply<WeakGripPower>(choiceContext, Owner.Creature, 1m, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -975,7 +975,7 @@ public sealed class Retribution : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<RetributionPower>(Owner.Creature, DynamicVars["RetributionPower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<RetributionPower>(choiceContext, Owner.Creature, DynamicVars["RetributionPower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -1003,7 +1003,7 @@ public sealed class Premonition : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<PremonitionPower>(Owner.Creature, DynamicVars["PremonitionPower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<PremonitionPower>(choiceContext, Owner.Creature, DynamicVars["PremonitionPower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -1026,7 +1026,7 @@ public sealed class SharedSuffering : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<SharedSufferingPower>(Owner.Creature, 1m, Owner.Creature, this);
+        await PowerCmd.Apply<SharedSufferingPower>(choiceContext, Owner.Creature, 1m, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -1189,7 +1189,7 @@ public sealed class Mania : FlagellantCard
             }
         }
 
-        await PowerCmd.Apply<NoDrawPower>(Owner.Creature, 1m, Owner.Creature, this);
+        await PowerCmd.Apply<NoDrawPower>(choiceContext, Owner.Creature, 1m, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -1217,7 +1217,7 @@ public sealed class Sympathy : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<SympathyPower>(Owner.Creature, DynamicVars["SympathyPower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<SympathyPower>(choiceContext, Owner.Creature, DynamicVars["SympathyPower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -1245,7 +1245,7 @@ public sealed class Discipline : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<DisciplinePower>(Owner.Creature, DynamicVars["DisciplinePower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<DisciplinePower>(choiceContext, Owner.Creature, DynamicVars["DisciplinePower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -1273,7 +1273,7 @@ public sealed class Lucidity : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<LucidityPower>(Owner.Creature, DynamicVars["LucidityPower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<LucidityPower>(choiceContext, Owner.Creature, DynamicVars["LucidityPower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -1311,8 +1311,8 @@ public sealed class Indignation : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await FlagellantCardHelpers.GainPenance(this, DynamicVars["PenancePower"].BaseValue);
-        await PowerCmd.Apply<StrengthPower>(Owner.Creature, ((CalculatedVar)DynamicVars["StrengthAmount"]).Calculate(cardPlay.Target), Owner.Creature, this);
+        await FlagellantCardHelpers.GainPenance(choiceContext, this, DynamicVars["PenancePower"].BaseValue);
+        await PowerCmd.Apply<StrengthPower>(choiceContext, Owner.Creature, ((CalculatedVar)DynamicVars["StrengthAmount"]).Calculate(cardPlay.Target), Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -1340,7 +1340,7 @@ public sealed class Delirium : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<DeliriumPower>(Owner.Creature, DynamicVars["DeliriumPower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<DeliriumPower>(choiceContext, Owner.Creature, DynamicVars["DeliriumPower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -1370,7 +1370,7 @@ public sealed class Cull : FlagellantCard
             card => card != this,
             this)).ToList();
         await CardCmd.Discard(choiceContext, selected);
-        await FlagellantCardHelpers.GainPenance(this, selected.Count);
+        await FlagellantCardHelpers.GainPenance(choiceContext, this, selected.Count);
         await CardPileCmd.Draw(choiceContext, selected.Count, Owner);
     }
 
@@ -1399,7 +1399,7 @@ public sealed class Grit : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<GritPower>(Owner.Creature, DynamicVars.Block.BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<GritPower>(choiceContext, Owner.Creature, DynamicVars.Block.BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -1496,8 +1496,8 @@ public sealed class Aggravate : FlagellantCard
     {
         ArgumentNullException.ThrowIfNull(cardPlay.Target);
         await FlagellantCardHelpers.DealAttack(this, choiceContext, cardPlay.Target, DynamicVars.Damage.BaseValue);
-        await FlagellantCardHelpers.ApplyPenance(this, cardPlay.Target, FlagellantCardHelpers.PenanceOn(cardPlay.Target));
-        await FlagellantCardHelpers.GainPenance(this, FlagellantCardHelpers.PenanceOn(Owner.Creature));
+        await FlagellantCardHelpers.ApplyPenance(choiceContext, this, cardPlay.Target, FlagellantCardHelpers.PenanceOn(cardPlay.Target));
+        await FlagellantCardHelpers.GainPenance(choiceContext, this, FlagellantCardHelpers.PenanceOn(Owner.Creature));
     }
 
     protected override void OnUpgrade()
@@ -1531,7 +1531,7 @@ public sealed class Onslaught : FlagellantCard
             .Targeting(cardPlay.Target)
             .WithHitFx("vfx/vfx_attack_blunt")
             .Execute(choiceContext);
-        await FlagellantCardHelpers.GainPenance(this, x);
+        await FlagellantCardHelpers.GainPenance(choiceContext, this, x);
     }
 
     protected override void OnUpgrade()
@@ -1550,7 +1550,7 @@ public sealed class Defiance : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<DefiancePower>(Owner.Creature, DynamicVars["DefiancePower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<DefiancePower>(choiceContext, Owner.Creature, DynamicVars["DefiancePower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade() => DynamicVars["DefiancePower"].UpgradeValueBy(3m);
@@ -1562,7 +1562,7 @@ public sealed class Conviction : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<ConvictionPower>(Owner.Creature, 1m, Owner.Creature, this);
+        await PowerCmd.Apply<ConvictionPower>(choiceContext, Owner.Creature, 1m, Owner.Creature, this);
     }
 
     protected override void OnUpgrade() => EnergyCost.UpgradeBy(-1);
@@ -1609,7 +1609,7 @@ public sealed class BolsteringBlow : FlagellantCard
     {
         ArgumentNullException.ThrowIfNull(cardPlay.Target);
         await FlagellantCardHelpers.DealAttack(this, choiceContext, cardPlay.Target, DynamicVars.Damage.BaseValue);
-        await FlagellantCardHelpers.GainResilience(this, DynamicVars["ResiliencePower"].BaseValue);
+        await FlagellantCardHelpers.GainResilience(choiceContext, this, DynamicVars["ResiliencePower"].BaseValue);
     }
 
     protected override void OnUpgrade()
@@ -1721,7 +1721,7 @@ public sealed class Gird : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await FlagellantCardHelpers.GainResilience(this, ResolveEnergyXValue() + DynamicVars["BonusResilience"].BaseValue);
+        await FlagellantCardHelpers.GainResilience(choiceContext, this, ResolveEnergyXValue() + DynamicVars["BonusResilience"].BaseValue);
     }
 
     protected override void OnUpgrade() => DynamicVars["BonusResilience"].UpgradeValueBy(1m);
@@ -1738,7 +1738,7 @@ public sealed class Condescend : FlagellantCard
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
         await CreatureCmd.GainBlock(Owner.Creature, DynamicVars.Block, cardPlay);
-        await PowerCmd.Apply<CondescendPower>(Owner.Creature, 1m, Owner.Creature, this);
+        await PowerCmd.Apply<CondescendPower>(choiceContext, Owner.Creature, 1m, Owner.Creature, this);
     }
 
     protected override void OnUpgrade() => DynamicVars.Block.UpgradeValueBy(3m);
@@ -1761,7 +1761,7 @@ public sealed class Mutter : FlagellantCard
         await CardPileCmd.Draw(choiceContext, DynamicVars.Cards.BaseValue, Owner);
         if (cardPlay.Target != null)
         {
-            await FlagellantCardHelpers.ApplyPenance(this, cardPlay.Target, DynamicVars["PenancePower"].BaseValue);
+            await FlagellantCardHelpers.ApplyPenance(choiceContext, this, cardPlay.Target, DynamicVars["PenancePower"].BaseValue);
         }
     }
 
@@ -1814,7 +1814,7 @@ public sealed class LayBare : FlagellantCard
             await PowerCmd.Remove<ArtifactPower>(cardPlay.Target);
         }
 
-        await FlagellantCardHelpers.ApplyPenance(this, cardPlay.Target, DynamicVars["PenancePower"].BaseValue);
+        await FlagellantCardHelpers.ApplyPenance(choiceContext, this, cardPlay.Target, DynamicVars["PenancePower"].BaseValue);
     }
 
     protected override void OnUpgrade() => DynamicVars["PenancePower"].UpgradeValueBy(1m);
@@ -1869,7 +1869,7 @@ public sealed class Rapture : FlagellantCard
             .Execute(choiceContext);
         if (penance != null)
         {
-            await PowerCmd.ModifyAmount(penance, -stacks, Owner.Creature, this);
+            await PowerCmd.ModifyAmount(choiceContext, penance, -stacks, Owner.Creature, this);
         }
     }
 
@@ -1882,7 +1882,7 @@ public sealed class Compulsion : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<CompulsionPower>(Owner.Creature, 1m, Owner.Creature, this);
+        await PowerCmd.Apply<CompulsionPower>(choiceContext, Owner.Creature, 1m, Owner.Creature, this);
     }
 
     protected override void OnUpgrade() => EnergyCost.UpgradeBy(-1);
@@ -1946,7 +1946,7 @@ public sealed class Anathema : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<AnathemaPower>(Owner.Creature, 1m, Owner.Creature, this);
+        await PowerCmd.Apply<AnathemaPower>(choiceContext, Owner.Creature, 1m, Owner.Creature, this);
     }
 
     protected override void OnUpgrade() => EnergyCost.UpgradeBy(-1);
@@ -1971,7 +1971,7 @@ public sealed class Redemption : FlagellantCard
         decimal damage = DynamicVars.ExtraDamage.BaseValue * removed;
         if (penance != null)
         {
-            await PowerCmd.ModifyAmount(penance, -removed, Owner.Creature, this);
+            await PowerCmd.ModifyAmount(choiceContext, penance, -removed, Owner.Creature, this);
         }
 
         await FlagellantCardHelpers.DealAttackAll(this, choiceContext, damage);
@@ -1998,7 +1998,7 @@ public sealed class Reckoning : FlagellantCard
         foreach (PenancePower penance in Owner.Creature.CombatState.Creatures.Select(creature => creature.GetPower<PenancePower>()).OfType<PenancePower>().ToList())
         {
             removed += penance.Amount;
-            await PowerCmd.ModifyAmount(penance, -penance.Amount, Owner.Creature, this);
+            await PowerCmd.ModifyAmount(choiceContext, penance, -penance.Amount, Owner.Creature, this);
         }
 
         await FlagellantCardHelpers.DealAttackAll(this, choiceContext, removed * DynamicVars.ExtraDamage.BaseValue);
@@ -2015,7 +2015,7 @@ public sealed class Exaltation : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<ExaltationPower>(Owner.Creature, 1m, Owner.Creature, this);
+        await PowerCmd.Apply<ExaltationPower>(choiceContext, Owner.Creature, 1m, Owner.Creature, this);
     }
 
     protected override void OnUpgrade() => AddKeyword(CardKeyword.Retain);
@@ -2039,7 +2039,7 @@ public sealed class CrownOfThorns : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<ThornsPower>(Owner.Creature, ((CalculatedVar)DynamicVars["PenanceAmount"]).Calculate(cardPlay.Target), Owner.Creature, this);
+        await PowerCmd.Apply<ThornsPower>(choiceContext, Owner.Creature, ((CalculatedVar)DynamicVars["PenanceAmount"]).Calculate(cardPlay.Target), Owner.Creature, this);
     }
 
     protected override void OnUpgrade() => EnergyCost.UpgradeBy(-1);
@@ -2053,7 +2053,7 @@ public sealed class Martyr : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<MartyrPower>(Owner.Creature, 1m, Owner.Creature, this);
+        await PowerCmd.Apply<MartyrPower>(choiceContext, Owner.Creature, 1m, Owner.Creature, this);
     }
 
     protected override void OnUpgrade() => EnergyCost.UpgradeBy(-1);
@@ -2078,7 +2078,7 @@ public sealed class Smite : FlagellantCard
             return;
         }
 
-        await PowerCmd.ModifyAmount(resilience, -DynamicVars["ResilienceCost"].BaseValue, Owner.Creature, this);
+        await PowerCmd.ModifyAmount(choiceContext, resilience, -DynamicVars["ResilienceCost"].BaseValue, Owner.Creature, this);
         if (cardPlay.Target.IsMonster)
         {
             await CreatureCmd.Stun(cardPlay.Target);
@@ -2108,10 +2108,10 @@ public sealed class Triumph : FlagellantCard
         int removed = penance?.Amount ?? 0;
         if (penance != null)
         {
-            await PowerCmd.ModifyAmount(penance, -removed, Owner.Creature, this);
+            await PowerCmd.ModifyAmount(choiceContext, penance, -removed, Owner.Creature, this);
         }
 
-        await FlagellantCardHelpers.GainResilience(this, removed);
+        await FlagellantCardHelpers.GainResilience(choiceContext, this, removed);
     }
 
     protected override void OnUpgrade() => EnergyCost.UpgradeBy(-1);
@@ -2125,7 +2125,7 @@ public sealed class Perseverance : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<PerseverancePower>(Owner.Creature, DynamicVars["PerseverancePower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<PerseverancePower>(choiceContext, Owner.Creature, DynamicVars["PerseverancePower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade() => DynamicVars["PerseverancePower"].UpgradeValueBy(1m);
@@ -2139,8 +2139,8 @@ public sealed class Manifestation : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await FlagellantCardHelpers.GainResilience(this, DynamicVars["ResiliencePower"].BaseValue);
-        await PowerCmd.Apply<ManifestationPower>(Owner.Creature, 1m, Owner.Creature, this);
+        await FlagellantCardHelpers.GainResilience(choiceContext, this, DynamicVars["ResiliencePower"].BaseValue);
+        await PowerCmd.Apply<ManifestationPower>(choiceContext, Owner.Creature, 1m, Owner.Creature, this);
     }
 
     protected override void OnUpgrade() => EnergyCost.UpgradeBy(-1);
@@ -2156,7 +2156,7 @@ public sealed class Vow : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await FlagellantCardHelpers.GainResilience(this, DynamicVars["ResiliencePower"].BaseValue);
+        await FlagellantCardHelpers.GainResilience(choiceContext, this, DynamicVars["ResiliencePower"].BaseValue);
     }
 
     protected override void OnUpgrade() => DynamicVars["ResiliencePower"].UpgradeValueBy(1m);
@@ -2176,7 +2176,7 @@ public sealed class Proselytize : FlagellantCard
     {
         foreach (Player player in Owner.Creature.CombatState.Players.Where(player => player.Creature.IsAlive))
         {
-            await PowerCmd.Apply<ResiliencePower>(player.Creature, DynamicVars["ResiliencePower"].BaseValue, Owner.Creature, this);
+            await PowerCmd.Apply<ResiliencePower>(choiceContext, player.Creature, DynamicVars["ResiliencePower"].BaseValue, Owner.Creature, this);
         }
     }
 
@@ -2191,7 +2191,7 @@ public sealed class Fortitude : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<FortitudePower>(Owner.Creature, DynamicVars["FortitudePower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<FortitudePower>(choiceContext, Owner.Creature, DynamicVars["FortitudePower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade() => EnergyCost.UpgradeBy(-1);
@@ -2203,7 +2203,7 @@ public sealed class Consumption : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<ConsumptionPower>(Owner.Creature, 1m, Owner.Creature, this);
+        await PowerCmd.Apply<ConsumptionPower>(choiceContext, Owner.Creature, 1m, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()
@@ -2220,7 +2220,7 @@ public sealed class TranscendentForm : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<TranscendentFormPower>(Owner.Creature, DynamicVars["TranscendentFormPower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<TranscendentFormPower>(choiceContext, Owner.Creature, DynamicVars["TranscendentFormPower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade() => DynamicVars["TranscendentFormPower"].UpgradeValueBy(1m);
@@ -2234,7 +2234,7 @@ public sealed class Tenderize : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<TenderizePower>(Owner.Creature, DynamicVars["TenderizePower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<TenderizePower>(choiceContext, Owner.Creature, DynamicVars["TenderizePower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade() => DynamicVars["TenderizePower"].UpgradeValueBy(1m);
@@ -2256,7 +2256,7 @@ public sealed class OriginalSin : FlagellantCard
     {
         ArgumentNullException.ThrowIfNull(cardPlay.Target);
         await FlagellantCardHelpers.DealAttack(this, choiceContext, cardPlay.Target, DynamicVars.Damage.BaseValue);
-        await FlagellantCardHelpers.ApplyPenance(this, cardPlay.Target, DynamicVars["PenancePower"].BaseValue);
+        await FlagellantCardHelpers.ApplyPenance(choiceContext, this, cardPlay.Target, DynamicVars["PenancePower"].BaseValue);
     }
 
     protected override void OnUpgrade()

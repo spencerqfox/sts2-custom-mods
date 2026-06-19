@@ -90,7 +90,7 @@ internal sealed class FriendCardTradeRestSiteOption : FriendTradeRestSiteOption
                 restored,
                 PileType.Deck,
                 CardPilePosition.Bottom,
-                source: null,
+                clonedBy: null,
                 skipVisuals: false);
 
             if (!result.success)
@@ -110,7 +110,7 @@ internal sealed class FriendCardTradeRestSiteOption : FriendTradeRestSiteOption
                 incoming,
                 PileType.Deck,
                 CardPilePosition.Bottom,
-                source: null,
+                clonedBy: null,
                 skipVisuals: false);
 
             if (!result.success)

@@ -28,7 +28,7 @@ public sealed class Penance : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        await PowerCmd.Apply<PenancePower>(Owner.Creature, DynamicVars["PenancePower"].BaseValue, Owner.Creature, this);
+        await PowerCmd.Apply<PenancePower>(choiceContext, Owner.Creature, DynamicVars["PenancePower"].BaseValue, Owner.Creature, this);
     }
 
     protected override void OnUpgrade()

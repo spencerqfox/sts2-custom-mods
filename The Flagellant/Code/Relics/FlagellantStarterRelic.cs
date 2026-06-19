@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Relics;
+using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Localization.DynamicVars;
 using MegaCrit.Sts2.Core.Models;
 using TheFlagellant.Powers;
@@ -22,6 +23,6 @@ public sealed class FlagellantStarterRelic : RelicModel
     public override async Task BeforeCombatStart()
     {
         Flash();
-        await PowerCmd.Apply<ResiliencePower>(Owner.Creature, DynamicVars["ResiliencePower"].BaseValue, Owner.Creature, null);
+        await PowerCmd.Apply<ResiliencePower>(new ThrowingPlayerChoiceContext(), Owner.Creature, DynamicVars["ResiliencePower"].BaseValue, Owner.Creature, null);
     }
 }

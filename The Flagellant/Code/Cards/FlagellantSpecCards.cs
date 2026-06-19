@@ -408,7 +408,7 @@ public sealed class Confession : FlagellantCard
 
     protected override void OnUpgrade()
     {
-        DynamicVars["Bonus"].UpgradeValueBy(1m);
+        DynamicVars["Bonus"].UpgradeValueBy(2m);
     }
 }
 
@@ -422,7 +422,7 @@ public sealed class Fervor : FlagellantCard
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new DynamicVar("Stats", 2m)
+        new DynamicVar("Stats", 1m)
     };
 
     public Fervor()
@@ -604,7 +604,7 @@ public sealed class Catechism : FlagellantCard
 {
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new DamageVar(4m, ValueProp.Move),
+        new DamageVar(5m, ValueProp.Move),
         new DynamicVar("Times", 2m)
     };
 
@@ -1235,7 +1235,7 @@ public sealed class Discipline : FlagellantCard
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new PowerVar<DisciplinePower>(1m)
+        new PowerVar<DisciplinePower>(3m)
     };
 
     public Discipline()
@@ -1250,7 +1250,7 @@ public sealed class Discipline : FlagellantCard
 
     protected override void OnUpgrade()
     {
-        DynamicVars["DisciplinePower"].UpgradeValueBy(1m);
+        DynamicVars["DisciplinePower"].UpgradeValueBy(2m);
     }
 }
 
@@ -1412,7 +1412,7 @@ public sealed class BreakingPoint : FlagellantCard
 {
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new DamageVar(15m, ValueProp.Move)
+        new DamageVar(20m, ValueProp.Move)
     };
 
     public BreakingPoint()
@@ -1699,7 +1699,7 @@ public sealed class Regroup : FlagellantCard
             FlagellantCardHelpers.CountResilienceLostThisTurn(card.Owner.Creature))
     };
 
-    public Regroup() : base(1, CardType.Skill, CardRarity.Uncommon, TargetType.Self) { }
+    public Regroup() : base(0, CardType.Skill, CardRarity.Uncommon, TargetType.Self) { }
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {

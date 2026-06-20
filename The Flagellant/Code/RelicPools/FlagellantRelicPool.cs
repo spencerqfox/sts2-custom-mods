@@ -17,7 +17,6 @@ public sealed class FlagellantRelicPool : RelicPoolModel
         return new RelicModel[]
         {
             ModelDb.Relic<FlagellantStarterRelic>(),
-            ModelDb.Relic<HallowedRosary>(),
             ModelDb.Relic<DuVuDoll>(),
             ModelDb.Relic<DarkstonePeriapt>(),
             ModelDb.Relic<ScarletLetter>(),

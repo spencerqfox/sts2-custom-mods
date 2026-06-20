@@ -33,6 +33,12 @@ public sealed class ResiliencePower : PowerModel
         Creature? applier,
         out decimal modifiedAmount)
     {
+        if (target == Owner && ManifestationPower.IsInternalStatAdjustment(canonicalPower, target, amount))
+        {
+            modifiedAmount = amount;
+            return false;
+        }
+
         // Block self-inflicted debuffs (applier == Owner) and curse-inflicted debuffs
         // (curses apply with a null applier, e.g. Doubt/Shame). Knowledge Demon choice
         // cards also use the owner as applier, but are boss debuffs and should land.
@@ -145,7 +151,7 @@ public sealed class GritPower : PowerModel
     {
         if (power is PenancePower && power.Owner == Owner && amount > 0m)
         {
-            await CreatureCmd.GainBlock(Owner, Amount, ValueProp.Unpowered, null);
+            await CreatureCmd.GainBlock(Owner, Amount * amount, ValueProp.Unpowered, null);
         }
     }
 
@@ -498,6 +504,8 @@ public sealed class PerseverancePower : PowerModel
 
 public sealed class ManifestationPower : PowerModel
 {
+    private static readonly Dictionary<Creature, int> InternalStatAdjustmentDepths = new();
+
     // Net Strength/Dexterity this power has applied to the Owner. While Manifestation is active the
     // player's Strength and Dexterity are FULLY OVERRIDDEN to equal Resilience: on every change we
     // push each stat's TOTAL to the Resilience target (swallowing external sources such as Vajra's
@@ -520,6 +528,16 @@ public sealed class ManifestationPower : PowerModel
 
     private int Resilience => Owner.GetPower<ResiliencePower>()?.Amount ?? 0;
 
+    internal static bool IsInternalStatAdjustment(PowerModel canonicalPower, Creature target, decimal amount)
+    {
+        if (amount >= 0m || (canonicalPower is not StrengthPower && canonicalPower is not DexterityPower))
+        {
+            return false;
+        }
+
+        return InternalStatAdjustmentDepths.ContainsKey(target);
+    }
+
     public override async Task AfterApplied(Creature? applier, CardModel? cardSource)
     {
         await SyncStatsToResilience(new ThrowingPlayerChoiceContext());
@@ -536,20 +554,19 @@ public sealed class ManifestationPower : PowerModel
     public override async Task AfterRemoved(Creature oldOwner)
     {
         // Back out only what this power added, so the creature returns to its non-Manifestation
-        // Strength/Dexterity. Applied silently with a null applier to match how the contributions
-        // were applied.
+        // Strength/Dexterity. These internal stat changes bypass Resilience's self-debuff shield.
         int str = _strContributed;
         int dex = _dexContributed;
         _strContributed = 0;
         _dexContributed = 0;
         if (str != 0)
         {
-            await PowerCmd.Apply<StrengthPower>(new ThrowingPlayerChoiceContext(), oldOwner, -str, null, null, silent: true);
+            await ApplyInternalStatAdjustment<StrengthPower>(new ThrowingPlayerChoiceContext(), oldOwner, -str);
         }
 
         if (dex != 0)
         {
-            await PowerCmd.Apply<DexterityPower>(new ThrowingPlayerChoiceContext(), oldOwner, -dex, null, null, silent: true);
+            await ApplyInternalStatAdjustment<DexterityPower>(new ThrowingPlayerChoiceContext(), oldOwner, -dex);
         }
     }
 
@@ -577,18 +594,50 @@ public sealed class ManifestationPower : PowerModel
             _dexContributed += dexDelta;
             if (strDelta != 0)
             {
-                await PowerCmd.Apply<StrengthPower>(choiceContext, Owner, strDelta, null, null, silent: true);
+                await ApplyInternalStatAdjustment<StrengthPower>(choiceContext, Owner, strDelta);
             }
 
             if (dexDelta != 0)
             {
-                await PowerCmd.Apply<DexterityPower>(choiceContext, Owner, dexDelta, null, null, silent: true);
+                await ApplyInternalStatAdjustment<DexterityPower>(choiceContext, Owner, dexDelta);
             }
         }
         finally
         {
             _syncing = false;
         }
+    }
+
+    private static async Task ApplyInternalStatAdjustment<TPower>(PlayerChoiceContext choiceContext, Creature target, decimal amount)
+        where TPower : PowerModel, new()
+    {
+        BeginInternalStatAdjustment(target);
+        try
+        {
+            await PowerCmd.Apply<TPower>(choiceContext, target, amount, null, null, silent: true);
+        }
+        finally
+        {
+            EndInternalStatAdjustment(target);
+        }
+    }
+
+    private static void BeginInternalStatAdjustment(Creature target)
+    {
+        InternalStatAdjustmentDepths.TryGetValue(target, out int depth);
+        InternalStatAdjustmentDepths[target] = depth + 1;
+    }
+
+    private static void EndInternalStatAdjustment(Creature target)
+    {
+        int depth = InternalStatAdjustmentDepths[target] - 1;
+        if (depth <= 0)
+        {
+            InternalStatAdjustmentDepths.Remove(target);
+            return;
+        }
+
+        InternalStatAdjustmentDepths[target] = depth;
     }
 }
 
@@ -647,12 +696,20 @@ public sealed class TranscendentFormPower : PowerModel
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
-    public override async Task AfterDamageGiven(PlayerChoiceContext choiceContext, Creature? dealer, DamageResult result, ValueProp props, Creature target, CardModel? cardSource)
+    public override decimal ModifyPowerAmountGivenAdditive(
+        PowerModel power,
+        Creature giver,
+        decimal amount,
+        Creature? target,
+        CardModel? cardSource)
     {
-        if (dealer == Owner && cardSource?.Type == CardType.Attack && result.UnblockedDamage > 0)
+        if (giver != Owner || amount <= 0m)
         {
-            await PowerCmd.Apply<PenancePower>(choiceContext, target, result.UnblockedDamage * Amount, Owner, cardSource);
+            return 0m;
         }
+
+        PowerType powerType = power.GetTypeForAmount(amount);
+        return powerType is PowerType.Buff or PowerType.Debuff ? Amount : 0m;
     }
 }
 

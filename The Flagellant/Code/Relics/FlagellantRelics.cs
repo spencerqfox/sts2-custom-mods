@@ -10,6 +10,7 @@ using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Localization.DynamicVars;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Powers;
+using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves.Runs;
 using MegaCrit.Sts2.Core.ValueProps;
 using TheFlagellant.Cards;
@@ -19,9 +20,11 @@ namespace TheFlagellant.Relics;
 
 public sealed class HallowedRosary : RelicModel
 {
-    public override RelicRarity Rarity => RelicRarity.Rare;
+    public override RelicRarity Rarity => RelicRarity.Ancient;
 
     protected override string IconBaseName => "burning_blood";
+
+    public override bool IsAllowed(IRunState runState) => false;
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {

@@ -294,8 +294,8 @@ public sealed class Sackcloth : FlagellantCard
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new BlockVar(10m, ValueProp.Move),
-        new PowerVar<PenancePower>(2m)
+        new BlockVar(12m, ValueProp.Move),
+        new PowerVar<PenancePower>(3m)
     };
 
     public Sackcloth()
@@ -311,7 +311,8 @@ public sealed class Sackcloth : FlagellantCard
 
     protected override void OnUpgrade()
     {
-        DynamicVars.Block.UpgradeValueBy(3m);
+        DynamicVars.Block.UpgradeValueBy(4m);
+        DynamicVars["PenancePower"].UpgradeValueBy(1m);
     }
 }
 
@@ -324,8 +325,8 @@ public sealed class Flail : FlagellantCard
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new DamageVar(13m, ValueProp.Move),
-        new PowerVar<PenancePower>(2m)
+        new DamageVar(12m, ValueProp.Move),
+        new PowerVar<PenancePower>(3m)
     };
 
     public Flail()
@@ -342,7 +343,8 @@ public sealed class Flail : FlagellantCard
 
     protected override void OnUpgrade()
     {
-        DynamicVars.Damage.UpgradeValueBy(3m);
+        DynamicVars.Damage.UpgradeValueBy(4m);
+        DynamicVars["PenancePower"].UpgradeValueBy(1m);
     }
 }
 
@@ -355,8 +357,8 @@ public sealed class Lament : FlagellantCard
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new DamageVar(9m, ValueProp.Move),
-        new PowerVar<PenancePower>(2m)
+        new DamageVar(12m, ValueProp.Move),
+        new PowerVar<PenancePower>(3m)
     };
 
     public Lament()
@@ -373,6 +375,7 @@ public sealed class Lament : FlagellantCard
     protected override void OnUpgrade()
     {
         DynamicVars.Damage.UpgradeValueBy(4m);
+        DynamicVars["PenancePower"].UpgradeValueBy(1m);
     }
 }
 
@@ -390,7 +393,7 @@ public sealed class Confession : FlagellantCard
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new PowerVar<PenancePower>(2m)
+        new PowerVar<PenancePower>(4m)
     };
 
     public Confession()
@@ -539,13 +542,13 @@ public sealed class Catharsis : FlagellantCard
 {
     protected override IEnumerable<IHoverTip> ExtraHoverTips => new IHoverTip[]
     {
-        HoverTipFactory.FromPower<NextTurnResiliencePower>()
+        HoverTipFactory.FromPower<ResiliencePower>()
     };
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
         new DamageVar(6m, ValueProp.Move),
-        new PowerVar<NextTurnResiliencePower>(1m)
+        new PowerVar<ResiliencePower>(1m)
     };
 
     public Catharsis()
@@ -557,7 +560,7 @@ public sealed class Catharsis : FlagellantCard
     {
         ArgumentNullException.ThrowIfNull(cardPlay.Target);
         await FlagellantCardHelpers.DealAttack(this, choiceContext, cardPlay.Target, DynamicVars.Damage.BaseValue);
-        await PowerCmd.Apply<NextTurnResiliencePower>(choiceContext, Owner.Creature, DynamicVars["NextTurnResiliencePower"].BaseValue, Owner.Creature, this);
+        await FlagellantCardHelpers.GainResilience(choiceContext, this, DynamicVars["ResiliencePower"].BaseValue);
     }
 
     protected override void OnUpgrade()
@@ -677,7 +680,7 @@ public sealed class Devotion : FlagellantCard
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
         new BlockVar(5m, ValueProp.Move),
-        new PowerVar<PenancePower>(1m),
+        new PowerVar<PenancePower>(2m),
         new CardsVar(1)
     };
 
@@ -696,6 +699,7 @@ public sealed class Devotion : FlagellantCard
     protected override void OnUpgrade()
     {
         DynamicVars.Block.UpgradeValueBy(2m);
+        DynamicVars["PenancePower"].UpgradeValueBy(1m);
         DynamicVars.Cards.UpgradeValueBy(1m);
     }
 }
@@ -1297,11 +1301,12 @@ public sealed class Indignation : FlagellantCard
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new PowerVar<PenancePower>(1m),
+        new PowerVar<PenancePower>(3m),
         new CalculationBaseVar(0m),
         new CalculationExtraVar(1m),
+        new DynamicVar("PenanceThreshold", 3m),
         new CalculatedVar("StrengthAmount").WithMultiplier((CardModel card, Creature? _) =>
-            FlagellantCardHelpers.CountUniqueDebuffs(card.Owner.Creature))
+            FlagellantCardHelpers.PenanceOn(card.Owner.Creature) / Math.Max(1, card.DynamicVars["PenanceThreshold"].IntValue))
     };
 
     public Indignation()
@@ -1318,6 +1323,7 @@ public sealed class Indignation : FlagellantCard
     protected override void OnUpgrade()
     {
         DynamicVars["PenancePower"].UpgradeValueBy(1m);
+        DynamicVars["PenanceThreshold"].UpgradeValueBy(-1m);
     }
 }
 
@@ -1404,7 +1410,7 @@ public sealed class Grit : FlagellantCard
 
     protected override void OnUpgrade()
     {
-        DynamicVars.Block.UpgradeValueBy(1m);
+        DynamicVars.Block.UpgradeValueBy(2m);
     }
 }
 
@@ -1512,7 +1518,7 @@ public sealed class Onslaught : FlagellantCard
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new DamageVar(10m, ValueProp.Move),
+        new DamageVar(12m, ValueProp.Move),
         new DynamicVar("BonusHits", 0m)
     };
 
@@ -1531,7 +1537,7 @@ public sealed class Onslaught : FlagellantCard
             .Targeting(cardPlay.Target)
             .WithHitFx("vfx/vfx_attack_blunt")
             .Execute(choiceContext);
-        await FlagellantCardHelpers.GainPenance(choiceContext, this, x);
+        await FlagellantCardHelpers.GainPenance(choiceContext, this, x * 2m);
     }
 
     protected override void OnUpgrade()
@@ -1572,7 +1578,7 @@ public sealed class ResoluteStrike : FlagellantCard
 {
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new CalculationBaseVar(8m),
+        new CalculationBaseVar(9m),
         new ExtraDamageVar(2m),
         new CalculatedDamageVar(ValueProp.Move).WithMultiplier((CardModel card, Creature? _) =>
             FlagellantCardHelpers.ResilienceOn(card.Owner.Creature))
@@ -1590,7 +1596,7 @@ public sealed class ResoluteStrike : FlagellantCard
             .Execute(choiceContext);
     }
 
-    protected override void OnUpgrade() => DynamicVars.CalculationBase.UpgradeValueBy(3m);
+    protected override void OnUpgrade() => DynamicVars.ExtraDamage.UpgradeValueBy(1m);
 }
 
 public sealed class BolsteringBlow : FlagellantCard
@@ -1599,7 +1605,7 @@ public sealed class BolsteringBlow : FlagellantCard
 
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
-        new DamageVar(12m, ValueProp.Move),
+        new DamageVar(16m, ValueProp.Move),
         new PowerVar<ResiliencePower>(2m)
     };
 
@@ -1614,7 +1620,7 @@ public sealed class BolsteringBlow : FlagellantCard
 
     protected override void OnUpgrade()
     {
-        DynamicVars.Damage.UpgradeValueBy(2m);
+        DynamicVars.Damage.UpgradeValueBy(4m);
         DynamicVars["ResiliencePower"].UpgradeValueBy(1m);
     }
 }
@@ -1655,9 +1661,9 @@ public sealed class Desperation : FlagellantCard
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        int lost = Math.Max(1, FlagellantCardHelpers.CountResilienceLostThisTurn(Owner.Creature));
+        int hits = 1 + FlagellantCardHelpers.CountResilienceLostThisTurn(Owner.Creature);
         await DamageCmd.Attack(DynamicVars.Damage.BaseValue)
-            .WithHitCount(lost)
+            .WithHitCount(hits)
             .FromCard(this)
             .TargetingRandomOpponents(CombatState)
             .WithHitFx("vfx/vfx_attack_blunt")
@@ -1860,17 +1866,11 @@ public sealed class Rapture : FlagellantCard
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
         ArgumentNullException.ThrowIfNull(cardPlay.Target);
-        PenancePower? penance = cardPlay.Target.GetPower<PenancePower>();
-        int stacks = penance?.Amount ?? 0;
         await DamageCmd.Attack(DynamicVars.CalculatedDamage)
             .FromCard(this)
             .Targeting(cardPlay.Target)
             .WithHitFx("vfx/vfx_attack_slash")
             .Execute(choiceContext);
-        if (penance != null)
-        {
-            await PowerCmd.ModifyAmount(choiceContext, penance, -stacks, Owner.Creature, this);
-        }
     }
 
     protected override void OnUpgrade() => DynamicVars.ExtraDamage.UpgradeValueBy(2m);
@@ -1892,7 +1892,7 @@ public sealed class Exorcise : FlagellantCard
 {
     public override IEnumerable<CardKeyword> CanonicalKeywords => new CardKeyword[] { CardKeyword.Exhaust };
 
-    protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[] { new DamageVar(12m, ValueProp.Move) };
+    protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[] { new DamageVar(15m, ValueProp.Move) };
 
     public Exorcise() : base(2, CardType.Attack, CardRarity.Rare, TargetType.AnyEnemy) { }
 
@@ -1911,7 +1911,7 @@ public sealed class Exorcise : FlagellantCard
         }
     }
 
-    protected override void OnUpgrade() => DynamicVars.Damage.UpgradeValueBy(5m);
+    protected override void OnUpgrade() => DynamicVars.Damage.UpgradeValueBy(4m);
 }
 
 public sealed class Maelstrom : FlagellantCard
@@ -1957,12 +1957,12 @@ public sealed class Redemption : FlagellantCard
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
         new CalculationBaseVar(0m),
-        new ExtraDamageVar(3m),
+        new ExtraDamageVar(6m),
         new CalculatedDamageVar(ValueProp.Move).WithMultiplier((CardModel card, Creature? _) =>
             FlagellantCardHelpers.PenanceOn(card.Owner.Creature))
     };
 
-    public Redemption() : base(3, CardType.Attack, CardRarity.Rare, TargetType.AllEnemies) { }
+    public Redemption() : base(2, CardType.Attack, CardRarity.Rare, TargetType.AllEnemies) { }
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
@@ -1977,7 +1977,7 @@ public sealed class Redemption : FlagellantCard
         await FlagellantCardHelpers.DealAttackAll(this, choiceContext, damage);
     }
 
-    protected override void OnUpgrade() => EnergyCost.UpgradeBy(-1);
+    protected override void OnUpgrade() => DynamicVars.ExtraDamage.UpgradeValueBy(2m);
 }
 
 public sealed class Reckoning : FlagellantCard
@@ -1985,26 +1985,28 @@ public sealed class Reckoning : FlagellantCard
     protected override IEnumerable<DynamicVar> CanonicalVars => new DynamicVar[]
     {
         new CalculationBaseVar(0m),
-        new ExtraDamageVar(2m),
-        new CalculatedDamageVar(ValueProp.Move).WithMultiplier((CardModel card, Creature? _) =>
-            card.Owner.Creature.CombatState.Creatures.Sum(FlagellantCardHelpers.PenanceOn))
+        new ExtraDamageVar(1m),
+        new CalculatedDamageVar(ValueProp.Move).WithMultiplier((CardModel _, Creature? target) =>
+            target == null ? 0m : FlagellantCardHelpers.PenanceOn(target))
     };
 
     public Reckoning() : base(0, CardType.Attack, CardRarity.Rare, TargetType.AllEnemies) { }
 
     protected override async Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
-        int removed = 0;
-        foreach (PenancePower penance in Owner.Creature.CombatState.Creatures.Select(creature => creature.GetPower<PenancePower>()).OfType<PenancePower>().ToList())
+        foreach (Creature enemy in CombatState.HittableEnemies.ToList())
         {
-            removed += penance.Amount;
-            await PowerCmd.ModifyAmount(choiceContext, penance, -penance.Amount, Owner.Creature, this);
+            await DamageCmd.Attack(FlagellantCardHelpers.PenanceOn(enemy))
+                .FromCard(this)
+                .Targeting(enemy)
+                .WithHitFx("vfx/vfx_attack_slash")
+                .Execute(choiceContext);
         }
-
-        await FlagellantCardHelpers.DealAttackAll(this, choiceContext, removed * DynamicVars.ExtraDamage.BaseValue);
     }
 
-    protected override void OnUpgrade() => DynamicVars.ExtraDamage.UpgradeValueBy(1m);
+    protected override void OnUpgrade()
+    {
+    }
 }
 
 public sealed class Exaltation : FlagellantCard

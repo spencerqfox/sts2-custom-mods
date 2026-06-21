@@ -114,7 +114,7 @@
   "THEFLAGELLANT-BOLSTERING_BLOW.title": "Bolstering Blow",
   "THEFLAGELLANT-BOLSTERING_BLOW.description": "Deal {Damage:diff()} damage. Gain {ResiliencePower:diff()} [gold]Resilience[/gold].",
   "THEFLAGELLANT-UPRISING.title": "Uprising",
-  "THEFLAGELLANT-UPRISING.description": "Deal {CalculatedDamage:diff()} damage to all enemies X{IfUpgraded:show: + {BonusHits:diff()}|} times.",
+  "THEFLAGELLANT-UPRISING.description": "Deal damage equal to your [gold]Resilience[/gold] to all enemies X{IfUpgraded:show: + {BonusHits:diff()}|} times.",
   "THEFLAGELLANT-DESPERATION.title": "Desperation",
   "THEFLAGELLANT-DESPERATION.description": "Deal {Damage:diff()} damage to a random enemy. Hits an additional time for each [gold]Resilience[/gold] lost this turn.",
   "THEFLAGELLANT-REINFORCE.title": "Reinforce",

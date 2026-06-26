@@ -5,6 +5,7 @@ using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Entities.RestSite;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
+using MegaCrit.Sts2.Core.Nodes.Rooms;
 
 namespace FriendTrading.Patches;
 
@@ -49,7 +50,18 @@ internal static class RestSiteSynchronizerBeginRestSitePatch
     {
         if (SubscribedSynchronizers.Add(__instance))
         {
-            __instance.AfterPlayerOptionChosen += FriendTradeCoordinator.OnRestSiteOptionChosen;
+            __instance.BeforePlayerOptionChosen += FriendTradeCoordinator.OnRestSiteOptionStarted;
+            __instance.AfterPlayerOptionChosen += FriendTradeCoordinator.OnRestSiteOptionFinished;
         }
+    }
+}
+
+[HarmonyPatch(typeof(NRestSiteRoom), "OnProceedButtonReleased")]
+internal static class RestSiteRoomProceedPatch
+{
+    [HarmonyPrefix]
+    private static void Prefix()
+    {
+        FriendTradeCoordinator.CancelLocalPendingOffers();
     }
 }

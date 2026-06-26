@@ -66,7 +66,7 @@ internal sealed partial class FriendRelicTradeSelectionScreen : Control, IOverla
         else
         {
             int index = (await RunManager.Instance.PlayerChoiceSynchronizer.WaitForRemoteChoice(player, choiceId)).AsIndex();
-            relic = index < 0 ? null : relics[index];
+            relic = index < 0 || index >= relics.Count ? null : relics[index];
         }
 
         return relic;

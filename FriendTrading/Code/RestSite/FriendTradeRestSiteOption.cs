@@ -1,8 +1,7 @@
 using System.Threading.Tasks;
-using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Entities.RestSite;
-using MegaCrit.Sts2.Core.Nodes.Rooms;
+using MegaCrit.Sts2.Core.Runs;
 
 namespace FriendTrading.RestSite;
 
@@ -19,11 +18,6 @@ internal abstract class FriendTradeRestSiteOption : RestSiteOption
 
     public override async Task<bool> OnSelect()
     {
-        if (FriendTradeCoordinator.TryCancelPending(Owner, Kind))
-        {
-            return false;
-        }
-
         Player? target = await FriendTradeTargetSelector.SelectTarget(Owner, this);
         if (target == null)
         {
@@ -36,15 +30,9 @@ internal abstract class FriendTradeRestSiteOption : RestSiteOption
             return false;
         }
 
-        Task<bool> result = FriendTradeCoordinator.Submit(
-            new FriendTradeOffer(Kind, Owner, target, payload),
-            out bool isPending);
-
-        if (isPending && LocalContext.IsMe(Owner))
-        {
-            NRestSiteRoom.Instance?.GetButtonForOption(this)?.Enable();
-        }
-
-        return await result;
+        bool isReciprocal = await FriendTradeCoordinator.SelectSubmissionIntent(Kind, Owner, target);
+        uint confirmationChoiceId = RunManager.Instance.PlayerChoiceSynchronizer.ReserveChoiceId(Owner);
+        return await FriendTradeCoordinator.Submit(
+            new FriendTradeOffer(Kind, this, Owner, target, payload, isReciprocal, confirmationChoiceId));
     }
 }

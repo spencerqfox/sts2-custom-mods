@@ -3,7 +3,7 @@
   "name": "Friend Trading",
   "author": "Spencer Fox",
   "description": "Adds reciprocal multiplayer card and relic trading options at rest sites.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "has_pck": true,
   "has_dll": true,
   "dependencies": [],

@@ -24,7 +24,7 @@ namespace FriendTrading.RestSite;
 
 internal sealed partial class FriendRelicTradeSelectionScreen : Control, IOverlayScreen, IScreenContext
 {
-    private const int Columns = 5;
+    private const int Columns = 6;
     private static readonly Vector2 HolderMinimumSize = new(180f, 180f);
 
     private readonly TaskCompletionSource<RelicModel?> _completionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);

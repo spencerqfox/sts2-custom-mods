@@ -1,0 +1,11 @@
+{
+  "id": "JoinInProgress",
+  "name": "Join In Progress",
+  "author": "Spencer Fox",
+  "description": "Allows a new multiplayer player to join at a map checkpoint and catch up through the party's completed rooms.",
+  "version": "0.0.1",
+  "has_pck": true,
+  "has_dll": true,
+  "dependencies": [],
+  "affects_gameplay": true
+}

@@ -1,6 +1,6 @@
 # sts2-custom-mods
 
-Personal repo of Slay the Spire 2 gameplay mods. Nine mods live here today: **Fog of War**, **Frozen Hand**, **Door Remaker**, **Heavy Enchantment**, **Neow Custom Mode**, **Random Character Custom Mode**, **Friend Trading**, **The Flagellant**, and **Correlated Randomness Fix**. All are DLL + PCK mods built against Godot 4.5.1 Mono.
+Personal repo of Slay the Spire 2 gameplay mods. Ten mods live here today: **Fog of War**, **Frozen Hand**, **Door Remaker**, **Heavy Enchantment**, **Neow Custom Mode**, **Random Character Custom Mode**, **Friend Trading**, **Join In Progress**, **The Flagellant**, and **Correlated Randomness Fix**. All are DLL + PCK mods built against Godot 4.5.1 Mono.
 
 ## Mods
 
@@ -42,6 +42,10 @@ Adds the standard **Random** character button to custom runs and lets the game's
 
 Adds reciprocal multiplayer **Trade Card** and **Trade Relic** options at rest sites. Card trades exchange removable deck cards. Relic trades use the game's tradability rules and reject relics with on-pickup effects. See [FriendTrading/README.md](FriendTrading/README.md).
 
+### Join In Progress
+
+Allows a new multiplayer player to join a running game while the party is waiting on the map. The joiner replays the party's ordered room history through catch-up choices, mirrors each floor's recorded HP loss, and synchronizes into the party before the next room. See [JoinInProgress/README.md](JoinInProgress/README.md).
+
 ### The Flagellant
 
 ![The Flagellant](The%20Flagellant/images/characters/flagellantcharacterselect.png)
@@ -62,6 +66,7 @@ sts2-custom-mods/
 |-- DoorRemaker/               # Door Remaker mod scaffold
 |-- FogOfWar/                  # Fog of War mod
 |-- FriendTrading/             # Friend Trading mod
+|-- JoinInProgress/            # Join In Progress multiplayer catch-up mod
 |-- FrozenHand/                # Frozen Hand mod
 |-- HeavyEnchantment/          # Heavy Enchantment mod
 |-- NeowCustomMode/            # Neow Custom Mode mod

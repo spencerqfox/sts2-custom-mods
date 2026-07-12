@@ -8,6 +8,7 @@ using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 
 namespace FriendTrading.RestSite;
 
@@ -23,7 +24,8 @@ internal sealed class FriendCardTradeRestSiteOption : FriendTradeRestSiteOption
 
     public override string OptionId => Id;
 
-    public override IEnumerable<string> AssetPaths => new[] { IconPath };
+    public override IEnumerable<string> AssetPaths =>
+        new[] { IconPath }.Concat(NPreviewCardHolder.AssetPaths);
 
     protected override FriendTradeKind Kind => FriendTradeKind.Card;
 
@@ -64,6 +66,8 @@ internal sealed class FriendCardTradeRestSiteOption : FriendTradeRestSiteOption
             _sourceCard = sourceCard;
             _serializedCard = sourceCard.ToSerializable();
         }
+
+        public AbstractModel TradeItem => _sourceCard;
 
         public bool CanTradeTo(Player target)
         {

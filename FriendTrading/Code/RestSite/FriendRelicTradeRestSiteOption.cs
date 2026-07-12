@@ -11,6 +11,7 @@ internal sealed class FriendRelicTradeRestSiteOption : FriendTradeRestSiteOption
 {
     public const string Id = "FRIEND_TRADE_RELIC";
     private const string IconPath = "res://images/ui/rest_site/option_friend_trade_relic.png";
+    private const string RelicHolderPath = "res://scenes/relics/relic_basic_holder.tscn";
 
     public FriendRelicTradeRestSiteOption(Player owner)
         : base(owner)
@@ -19,7 +20,7 @@ internal sealed class FriendRelicTradeRestSiteOption : FriendTradeRestSiteOption
 
     public override string OptionId => Id;
 
-    public override IEnumerable<string> AssetPaths => new[] { IconPath };
+    public override IEnumerable<string> AssetPaths => new[] { IconPath, RelicHolderPath };
 
     protected override FriendTradeKind Kind => FriendTradeKind.Relic;
 
@@ -67,6 +68,8 @@ internal sealed class FriendRelicTradeRestSiteOption : FriendTradeRestSiteOption
             _sourceRelic = sourceRelic;
             _serializedRelic = sourceRelic.ToSerializable();
         }
+
+        public AbstractModel TradeItem => _sourceRelic;
 
         public bool CanTradeTo(Player target)
         {

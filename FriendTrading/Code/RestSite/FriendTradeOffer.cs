@@ -36,4 +36,6 @@ internal sealed class FriendTradeOffer
     public bool IsReciprocal { get; }
 
     public uint ConfirmationChoiceId { get; }
+
+    public FriendTradeWaitingScreen? WaitingScreen { get; set; }
 }

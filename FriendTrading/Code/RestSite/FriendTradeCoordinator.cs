@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Context;
+using MegaCrit.Sts2.Core.Entities.Multiplayer;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Entities.RestSite;
 using MegaCrit.Sts2.Core.GameActions;
+using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Hooks;
 using MegaCrit.Sts2.Core.Logging;
+using MegaCrit.Sts2.Core.Multiplayer.Game;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 
@@ -20,20 +23,48 @@ internal static class FriendTradeCoordinator
     private static readonly Dictionary<(FriendTradeKind Kind, ulong SenderId), PendingTrade> PendingOffers = new();
     private static readonly HashSet<(FriendTradeKind Kind, ulong PlayerId)> UnavailablePlayers = new();
     private static readonly HashSet<ulong> ActiveSelections = new();
+    private static PlayerChoiceSynchronizer? SubscribedChoiceSynchronizer;
 
     public static void Reset()
     {
+        List<FriendTradeOffer> pendingOffers;
+
         lock (SyncRoot)
         {
+            pendingOffers = PendingOffers.Values
+                .Select(pending => pending.Offer)
+                .ToList();
             PendingOffers.Clear();
             UnavailablePlayers.Clear();
             ActiveSelections.Clear();
+        }
+
+        foreach (FriendTradeOffer offer in pendingOffers)
+        {
+            CloseWaitingScreen(offer);
         }
     }
 
     public static void SyncAvailabilityFromOptions(Player player, IReadOnlyList<RestSiteOption> options)
     {
         RejectLocalPendingOffers(MarkUnavailableKindsMissingFromOptions(player.NetId, options));
+    }
+
+    public static void SubscribeToChoiceResults()
+    {
+        PlayerChoiceSynchronizer synchronizer = RunManager.Instance.PlayerChoiceSynchronizer;
+        if (ReferenceEquals(SubscribedChoiceSynchronizer, synchronizer))
+        {
+            return;
+        }
+
+        if (SubscribedChoiceSynchronizer != null)
+        {
+            SubscribedChoiceSynchronizer.PlayerChoiceReceived -= OnPlayerChoiceReceived;
+        }
+
+        SubscribedChoiceSynchronizer = synchronizer;
+        synchronizer.PlayerChoiceReceived += OnPlayerChoiceReceived;
     }
 
     public static async Task<bool> SelectSubmissionIntent(FriendTradeKind kind, Player sender, Player target)
@@ -63,6 +94,7 @@ internal static class FriendTradeCoordinator
         }
 
         PendingTrade? counterpart = null;
+        bool shouldWait = false;
 
         lock (SyncRoot)
         {
@@ -71,6 +103,7 @@ internal static class FriendTradeCoordinator
                 waitingOffer.Offer.Target.NetId == offer.Sender.NetId &&
                 offer.IsReciprocal)
             {
+                waitingOffer.ConfirmationClaimed = true;
                 counterpart = waitingOffer;
             }
             else
@@ -88,8 +121,14 @@ internal static class FriendTradeCoordinator
 
                 var offerKey = (offer.Kind, offer.Sender.NetId);
                 PendingOffers[offerKey] = new PendingTrade(offer);
-                return Task.FromResult(false);
+                shouldWait = true;
             }
+        }
+
+        if (shouldWait)
+        {
+            ShowWaitingScreen(offer);
+            return Task.FromResult(false);
         }
 
         return CompletePairAndResolve(offer, counterpart!);
@@ -204,14 +243,11 @@ internal static class FriendTradeCoordinator
             second = offer;
         }
 
-        if (!CanCompletePair(first, second) ||
-            !CanConsumePendingOffer(counterpart.Offer))
-        {
-            RejectLocalPendingOffers(CancelPendingOffer(counterpart.Offer));
-            return false;
-        }
-
-        if (!await ConfirmPendingOffer(counterpart.Offer))
+        // Only the pending offer's owner decides whether the pair is still valid. The
+        // other peers can briefly observe different ActiveSelections state while their
+        // fire-and-forget rest-site option tasks finish, so validating independently
+        // before this synchronized choice can make one peer abort while another commits.
+        if (!await ConfirmPendingOffer(counterpart.Offer, first, second))
         {
             CancelPendingOffer(counterpart.Offer);
             return false;
@@ -231,13 +267,16 @@ internal static class FriendTradeCoordinator
         return true;
     }
 
-    private static async Task<bool> ConfirmPendingOffer(FriendTradeOffer pendingOffer)
+    private static async Task<bool> ConfirmPendingOffer(
+        FriendTradeOffer pendingOffer,
+        FriendTradeOffer first,
+        FriendTradeOffer second)
     {
         if (LocalContext.IsMe(pendingOffer.Sender))
         {
+            bool canAccept = CanCompletePair(first, second) && CanConsumePendingOffer(pendingOffer);
             bool accepted;
             bool shouldSend;
-            PendingTrade? pendingTrade = null;
 
             lock (SyncRoot)
             {
@@ -245,16 +284,16 @@ internal static class FriendTradeCoordinator
                     (pendingOffer.Kind, pendingOffer.Sender.NetId),
                     out PendingTrade? pending) &&
                     pending.Offer == pendingOffer;
-                pendingTrade = pending;
 
                 accepted = shouldSend &&
+                           canAccept &&
                            !ActiveSelections.Contains(pendingOffer.Sender.NetId) &&
                            !IsUnavailable(pendingOffer.Sender.NetId, pendingOffer.Kind) &&
                            !IsUnavailable(pendingOffer.Target.NetId, pendingOffer.Kind);
 
                 if (shouldSend)
                 {
-                    pendingTrade!.ConfirmationSent = true;
+                    pending!.ConfirmationSent = true;
 
                     if (!accepted)
                     {
@@ -270,6 +309,8 @@ internal static class FriendTradeCoordinator
                     pendingOffer.ConfirmationChoiceId,
                     PlayerChoiceResult.FromIndex(accepted ? 1 : 0));
             }
+
+            CloseWaitingScreen(pendingOffer);
 
             if (accepted)
             {
@@ -321,6 +362,8 @@ internal static class FriendTradeCoordinator
                 PendingOffers.Remove((offer.Kind, offer.Sender.NetId));
             }
         }
+
+        CloseWaitingScreen(offer);
 
         IReadOnlyList<RestSiteOption> options =
             RunManager.Instance.RestSiteSynchronizer.GetOptionsForPlayer(offer.Sender.NetId);
@@ -487,6 +530,8 @@ internal static class FriendTradeCoordinator
     {
         foreach (FriendTradeOffer offer in offers)
         {
+            CloseWaitingScreen(offer);
+
             if (!LocalContext.IsMe(offer.Sender))
             {
                 continue;
@@ -497,6 +542,129 @@ internal static class FriendTradeCoordinator
                 offer.ConfirmationChoiceId,
                 PlayerChoiceResult.FromIndex(0));
         }
+    }
+
+    private static void ShowWaitingScreen(FriendTradeOffer offer)
+    {
+        if (!LocalContext.IsMe(offer.Sender) ||
+            RunManager.Instance.NetService.Type == NetGameType.Replay)
+        {
+            return;
+        }
+
+        FriendTradeWaitingScreen? screen = FriendTradeWaitingScreen.Show(
+            offer.Payload.TradeItem,
+            offer.Target,
+            () => TryCancelFromWaitingScreen(offer));
+        if (screen == null)
+        {
+            return;
+        }
+
+        bool stillPending;
+        lock (SyncRoot)
+        {
+            stillPending = PendingOffers.TryGetValue(
+                    (offer.Kind, offer.Sender.NetId),
+                    out PendingTrade? pending) &&
+                pending.Offer == offer &&
+                !pending.ConfirmationClaimed &&
+                !pending.ConfirmationSent;
+
+            if (stillPending)
+            {
+                offer.WaitingScreen = screen;
+            }
+        }
+
+        if (!stillPending)
+        {
+            screen.Close();
+        }
+    }
+
+    private static bool TryCancelFromWaitingScreen(FriendTradeOffer offer)
+    {
+        lock (SyncRoot)
+        {
+            if (!PendingOffers.TryGetValue(
+                    (offer.Kind, offer.Sender.NetId),
+                    out PendingTrade? pending) ||
+                pending.Offer != offer ||
+                pending.ConfirmationClaimed ||
+                pending.ConfirmationSent)
+            {
+                return false;
+            }
+
+            PendingOffers.Remove((offer.Kind, offer.Sender.NetId));
+        }
+
+        RejectLocalPendingOffers(new[] { offer });
+        return true;
+    }
+
+    private static void CloseWaitingScreen(FriendTradeOffer offer)
+    {
+        FriendTradeWaitingScreen? screen = offer.WaitingScreen;
+        offer.WaitingScreen = null;
+        screen?.Close();
+    }
+
+    private static void OnPlayerChoiceReceived(
+        Player sender,
+        uint choiceId,
+        NetPlayerChoiceResult result)
+    {
+        if (result.indexes == null ||
+            result.indexes.Count != 1 ||
+            result.indexes[0] != 0)
+        {
+            return;
+        }
+
+        bool shouldConsumeChoice = false;
+        lock (SyncRoot)
+        {
+            (FriendTradeKind Kind, ulong SenderId)? rejectedOfferKey = null;
+            foreach (var entry in PendingOffers)
+            {
+                FriendTradeOffer offer = entry.Value.Offer;
+                if (!entry.Value.ConfirmationSent &&
+                    offer.Sender.NetId == sender.NetId &&
+                    offer.ConfirmationChoiceId == choiceId)
+                {
+                    rejectedOfferKey = entry.Key;
+                    shouldConsumeChoice = !entry.Value.ConfirmationClaimed;
+                    break;
+                }
+            }
+
+            if (rejectedOfferKey.HasValue)
+            {
+                PendingOffers.Remove(rejectedOfferKey.Value);
+            }
+        }
+
+        PlayerChoiceSynchronizer? synchronizer = SubscribedChoiceSynchronizer;
+        if (shouldConsumeChoice &&
+            synchronizer != null &&
+            !LocalContext.IsMe(sender) &&
+            RunManager.Instance.NetService.Type != NetGameType.Singleplayer)
+        {
+            TaskHelper.RunSafely(ConsumeRejectedChoice(synchronizer, sender, choiceId));
+        }
+    }
+
+    private static async Task ConsumeRejectedChoice(
+        PlayerChoiceSynchronizer synchronizer,
+        Player sender,
+        uint choiceId)
+    {
+        // PlayerChoiceReceived fires just before the base synchronizer buffers an
+        // unclaimed result, so defer once and then remove that completed entry.
+        await Task.Yield();
+        await synchronizer.WaitForRemoteChoice(sender, choiceId);
     }
 
     private static void DisableLocalOptionsIfPlayer(Player player)
@@ -523,6 +691,8 @@ internal static class FriendTradeCoordinator
         }
 
         public FriendTradeOffer Offer { get; }
+
+        public bool ConfirmationClaimed { get; set; }
 
         public bool ConfirmationSent { get; set; }
     }

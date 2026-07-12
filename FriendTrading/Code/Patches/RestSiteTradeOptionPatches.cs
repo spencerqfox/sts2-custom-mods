@@ -48,6 +48,8 @@ internal static class RestSiteSynchronizerBeginRestSitePatch
     [HarmonyPostfix]
     private static void Postfix(RestSiteSynchronizer __instance)
     {
+        FriendTradeCoordinator.SubscribeToChoiceResults();
+
         if (SubscribedSynchronizers.Add(__instance))
         {
             __instance.BeforePlayerOptionChosen += FriendTradeCoordinator.OnRestSiteOptionStarted;
@@ -58,6 +60,16 @@ internal static class RestSiteSynchronizerBeginRestSitePatch
 
 [HarmonyPatch(typeof(NRestSiteRoom), "OnProceedButtonReleased")]
 internal static class RestSiteRoomProceedPatch
+{
+    [HarmonyPrefix]
+    private static void Prefix()
+    {
+        FriendTradeCoordinator.CancelLocalPendingOffers();
+    }
+}
+
+[HarmonyPatch(typeof(NRestSiteRoom), nameof(NRestSiteRoom._ExitTree))]
+internal static class RestSiteRoomExitPatch
 {
     [HarmonyPrefix]
     private static void Prefix()

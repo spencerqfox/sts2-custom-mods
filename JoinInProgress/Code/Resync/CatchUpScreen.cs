@@ -275,12 +275,12 @@ internal sealed partial class CatchUpScreen : Control
             .ToList();
         if (relics.Count == 0)
         {
-            return CompleteStep(step);
+            return ShowCombatPotionOrComplete(step, reference);
         }
 
         ClearChoices();
         List<ModelChoiceHistoryEntry> safeRelics = relics
-            .Where(choice => !ModelDb.GetById<RelicModel>(choice.choice).HasUponPickupEffect)
+            .Where(choice => CanReplayRelic(ModelDb.GetById<RelicModel>(choice.choice)))
             .ToList();
         AddInfo(safeRelics.Count == relics.Count
             ? "Choose a recorded relic reward, or skip it."
@@ -293,13 +293,51 @@ internal sealed partial class CatchUpScreen : Control
                 if (await AddRelic(relicId, step.Floor))
                 {
                     RecordRelicChoices(step.Floor, relics, relicId);
-                    await CompleteStep(step);
+                    await ShowCombatPotionOrComplete(step, reference);
                 }
             });
         }
         AddActionButton("Skip relic reward", () =>
         {
             RecordRelicChoices(step.Floor, relics, null);
+            return ShowCombatPotionOrComplete(step, reference);
+        });
+        return Task.CompletedTask;
+    }
+
+    private Task ShowCombatPotionOrComplete(CatchUpStep step, PlayerMapPointHistoryEntry reference)
+    {
+        List<ModelChoiceHistoryEntry> potions = reference.PotionChoices
+            .GroupBy(choice => choice.choice)
+            .Select(group => group.First())
+            .ToList();
+        if (potions.Count == 0)
+        {
+            return CompleteStep(step);
+        }
+
+        ClearChoices();
+        AddInfo("Choose one of the recorded potion rewards, or skip it.");
+        foreach (ModelChoiceHistoryEntry choice in potions)
+        {
+            ModelId potionId = choice.choice;
+            AddActionButton(GetModelName<PotionModel>(potionId), () =>
+            {
+                PotionModel potion = ModelDb.GetById<PotionModel>(potionId);
+                var result = _player.AddPotionInternal(potion.ToMutable());
+                if (!result.success)
+                {
+                    _status.Text = "No open potion slot.";
+                    return Task.CompletedTask;
+                }
+
+                RecordPotionChoices(step.Floor, potions, potionId);
+                return CompleteStep(step);
+            });
+        }
+        AddActionButton("Skip potion reward", () =>
+        {
+            RecordPotionChoices(step.Floor, potions, null);
             return CompleteStep(step);
         });
         return Task.CompletedTask;
@@ -390,9 +428,9 @@ internal sealed partial class CatchUpScreen : Control
             string key = $"{_stepIndex}:relic:{index++}";
             ModelId relicId = choice.choice;
             RelicModel relic = ModelDb.GetById<RelicModel>(relicId);
-            if (relic.HasUponPickupEffect)
+            if (!CanReplayRelic(relic))
             {
-                AddInfo($"{relic.Title.GetFormattedText()} is unavailable during catch-up because it opens a nested pickup screen.");
+                AddInfo($"{relic.Title.GetFormattedText()} is unavailable during catch-up because it has custom pickup logic.");
                 continue;
             }
             int cost = relic.MerchantCost;
@@ -474,7 +512,7 @@ internal sealed partial class CatchUpScreen : Control
             .Select(group => group.First())
             .ToList();
         List<ModelChoiceHistoryEntry> safeRelics = relics
-            .Where(choice => !ModelDb.GetById<RelicModel>(choice.choice).HasUponPickupEffect)
+            .Where(choice => CanReplayRelic(ModelDb.GetById<RelicModel>(choice.choice)))
             .ToList();
         AddInfo(relics.Count == 0
             ? "The chest had no recorded relic."
@@ -580,14 +618,18 @@ internal sealed partial class CatchUpScreen : Control
         }
         foreach (ModelChoiceHistoryEntry relic in reference.RelicChoices.Where(choice => choice.wasPicked))
         {
-            if (!ModelDb.GetById<RelicModel>(relic.choice).HasUponPickupEffect)
+            if (CanReplayRelic(ModelDb.GetById<RelicModel>(relic.choice)))
             {
                 await AddRelic(relic.choice, step.Floor);
             }
         }
         foreach (ModelChoiceHistoryEntry potion in reference.PotionChoices.Where(choice => choice.wasPicked))
         {
-            _player.AddPotionInternal(ModelDb.GetById<PotionModel>(potion.choice).ToMutable());
+            var result = _player.AddPotionInternal(ModelDb.GetById<PotionModel>(potion.choice).ToMutable());
+            if (result.success)
+            {
+                local.PotionChoices.Add(new ModelChoiceHistoryEntry(potion.choice, wasPicked: true));
+            }
         }
     }
 
@@ -628,9 +670,9 @@ internal sealed partial class CatchUpScreen : Control
     private async Task<bool> AddRelic(ModelId relicId, MapPointHistoryEntry floor)
     {
         RelicModel canonical = ModelDb.GetById<RelicModel>(relicId);
-        if (canonical.HasUponPickupEffect)
+        if (!CanReplayRelic(canonical))
         {
-            _status.Text = $"{canonical.Title.GetFormattedText()} opens a pickup screen and cannot be synchronized safely.";
+            _status.Text = $"{canonical.Title.GetFormattedText()} has custom pickup logic and cannot be synchronized safely.";
             return false;
         }
         if (!canonical.IsStackable && _player.Relics.Any(relic => relic.Id == relicId))
@@ -691,6 +733,20 @@ internal sealed partial class CatchUpScreen : Control
             ModelChoiceHistoryEntry copy = original;
             copy.wasPicked = selected != null && copy.choice == selected;
             local.RelicChoices.Add(copy);
+        }
+    }
+
+    private void RecordPotionChoices(
+        MapPointHistoryEntry floor,
+        IReadOnlyList<ModelChoiceHistoryEntry> choices,
+        ModelId? selected)
+    {
+        PlayerMapPointHistoryEntry local = GetLocalEntry(floor);
+        foreach (ModelChoiceHistoryEntry original in choices)
+        {
+            ModelChoiceHistoryEntry copy = original;
+            copy.wasPicked = selected != null && copy.choice == selected;
+            local.PotionChoices.Add(copy);
         }
     }
 
@@ -769,7 +825,18 @@ internal sealed partial class CatchUpScreen : Control
 
     private PlayerMapPointHistoryEntry GetReferenceEntry(MapPointHistoryEntry floor)
     {
-        return floor.PlayerStats.First(entry => entry.PlayerId != _player.NetId);
+        List<PlayerMapPointHistoryEntry> originals = floor.PlayerStats
+            .Where(entry => entry.PlayerId != _player.NetId)
+            .ToList();
+        return originals.FirstOrDefault(entry =>
+                   _state.GetPlayer(entry.PlayerId)?.Character.Id == _player.Character.Id)
+               ?? originals.First();
+    }
+
+    private static bool CanReplayRelic(RelicModel relic)
+    {
+        return !relic.HasUponPickupEffect &&
+               relic.GetType().GetMethod(nameof(RelicModel.AfterObtained))?.DeclaringType == typeof(RelicModel);
     }
 
     private PlayerMapPointHistoryEntry GetLocalEntry(MapPointHistoryEntry floor)

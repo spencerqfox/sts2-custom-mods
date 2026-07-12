@@ -181,10 +181,10 @@ internal static class LateJoinNetwork
                     SendReady(senderId, accepted: false, isLateJoin: false, "The selected character is unavailable.");
                     return;
                 }
-                if (character.StartingRelics.Any(relic => relic.HasUponPickupEffect))
+                if (character.StartingRelics.Any(relic => !CanReplayStartingRelic(relic)))
                 {
                     SendReady(senderId, accepted: false, isLateJoin: false,
-                        "That character has a starting relic whose pickup choices cannot be synchronized safely.");
+                        "That character has a starting relic whose pickup logic cannot be synchronized safely.");
                     return;
                 }
 
@@ -211,7 +211,9 @@ internal static class LateJoinNetwork
                 state.Rng.LoadFromSerializable(transaction.RunRng);
                 player.InitializeSeed(state.Rng.StringSeed);
                 LatePlayerState.InitializeRelicProgression(state, player);
-                Player reference = state.Players.First(candidate => candidate.NetId != senderId);
+                List<Player> originals = state.Players.Where(candidate => candidate.NetId != senderId).ToList();
+                Player reference = originals.FirstOrDefault(candidate => candidate.Character.Id == character.Id)
+                                   ?? originals.First();
                 LatePlayerState.AlignProgressionWithReference(player, reference);
                 LatePlayerState.RefreshUnlockState(state);
                 LatePlayerState.EnsureHistoryEntries(state, senderId);
@@ -271,6 +273,12 @@ internal static class LateJoinNetwork
         {
             return PendingPlayers.ContainsKey(playerId);
         }
+    }
+
+    private static bool CanReplayStartingRelic(RelicModel relic)
+    {
+        return !relic.HasUponPickupEffect &&
+               relic.GetType().GetMethod(nameof(RelicModel.AfterObtained))?.DeclaringType == typeof(RelicModel);
     }
 
     private static bool IsHostPeerConnected(ulong playerId)
@@ -539,7 +547,14 @@ internal static class LateJoinNetwork
 
         state.Rng.LoadFromSerializable(message.RunRng);
         state.SharedRelicGrabBag.LoadFromSerializable(message.SharedRelicGrabBag);
-        player.SyncWithSerializedPlayer(message.Player);
+        if (message.Player.NetId == RunManager.Instance.NetService.NetId)
+        {
+            LatePlayerState.ApplyLocalAuthoritativeSnapshot(player, message.Player);
+        }
+        else
+        {
+            player.SyncWithSerializedPlayer(message.Player);
+        }
         LatePlayerState.ApplyHistory(state, message.Player.NetId, message.History);
         LatePlayerState.EnsurePlayerUi(state);
         await PreloadManager.LoadRunAssets(new[] { player.Character });

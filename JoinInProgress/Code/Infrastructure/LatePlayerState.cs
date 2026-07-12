@@ -156,6 +156,46 @@ internal static class LatePlayerState
         }
     }
 
+    public static void ApplyLocalAuthoritativeSnapshot(Player player, SerializablePlayer snapshot)
+    {
+        SerializablePlayer local = player.ToSerializable();
+        bool relicsMatch = local.Relics.Select(relic => relic.Id)
+            .SequenceEqual(snapshot.Relics.Select(relic => relic.Id));
+        bool potionsMatch = local.Potions.Select(potion => (potion.Id, potion.SlotIndex))
+            .SequenceEqual(snapshot.Potions.Select(potion => (potion.Id, potion.SlotIndex)));
+        if (!relicsMatch || !potionsMatch)
+        {
+            throw new InvalidOperationException("The host snapshot did not match the locally replayed relics and potions.");
+        }
+
+        RunState state = (RunState)player.RunState;
+        foreach (var card in player.Deck.Cards.ToList())
+        {
+            player.Deck.RemoveInternal(card);
+            state.RemoveCard(card);
+        }
+        foreach (SerializableCard card in snapshot.Deck)
+        {
+            player.Deck.AddInternal(state.LoadCard(card, player));
+        }
+
+        player.Creature.SetMaxHpInternal(snapshot.MaxHp);
+        player.Creature.SetCurrentHpInternal(snapshot.CurrentHp);
+        player.MaxEnergy = snapshot.MaxEnergy;
+        player.BaseOrbSlotCount = snapshot.BaseOrbSlotCount;
+        player.Gold = snapshot.Gold;
+        player.PlayerRng.LoadFromSerializable(snapshot.Rng);
+        player.PlayerOdds.LoadFromSerializable(snapshot.Odds);
+        player.RelicGrabBag.LoadFromSerializable(snapshot.RelicGrabBag);
+        player.DiscoveredCards = snapshot.DiscoveredCards.ToList();
+        player.DiscoveredEnemies = snapshot.DiscoveredEnemies.ToList();
+        player.DiscoveredEpochs = snapshot.DiscoveredEpochs.ToList();
+        player.DiscoveredPotions = snapshot.DiscoveredPotions.ToList();
+        player.DiscoveredRelics = snapshot.DiscoveredRelics.ToList();
+        AccessTools.Property(typeof(Player), nameof(Player.ExtraFields))
+            .SetValue(player, ExtraPlayerFields.FromSerializable(snapshot.ExtraFields));
+    }
+
     public static void InitializeRelicProgression(RunState state, Player player)
     {
         RunRngSet scratch = new(state.Rng.StringSeed);

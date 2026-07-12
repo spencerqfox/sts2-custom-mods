@@ -5,6 +5,7 @@ using HarmonyLib;
 using MegaCrit.Sts2.Core.Assets;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Multiplayer;
+using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Models;
@@ -61,6 +62,7 @@ internal static class LateJoinRunLoader
             ApplySynchronizationCounters(response, ready);
             ReplaceConnectedPlayerIds(ready);
             await RunManager.Instance.LoadIntoLatestMapCoord(new MapRoom());
+            ApplyTransientPlayerState(response.combatState, state);
             if (RunManager.Instance.MapDrawingsToLoad != null)
             {
                 (NRun.Instance ?? throw new InvalidOperationException("The run scene was not created."))
@@ -119,6 +121,36 @@ internal static class LateJoinRunLoader
 
         manager.PlayerChoiceSynchronizer.FastForwardChoiceIds(response.combatState.nextChoiceIds);
         manager.RewardsSetSynchronizer.FastForwardRewardIds(response.combatState.nextRewardIds);
+    }
+
+    private static void ApplyTransientPlayerState(NetFullCombatState? combatState, RunState state)
+    {
+        if (combatState == null)
+        {
+            return;
+        }
+
+        foreach (NetFullCombatState.PlayerState snapshot in combatState.Players)
+        {
+            Player? player = state.GetPlayer(snapshot.playerId);
+            if (player == null || snapshot.turnNumber <= 0)
+            {
+                continue;
+            }
+
+            if (player.PlayerCombatState == null)
+            {
+                player.ResetCombatState();
+                player.PlayerCombatState!.AfterCombatEnd();
+            }
+
+            PlayerCombatState playerState = player.PlayerCombatState!;
+            AccessTools.Field(typeof(PlayerCombatState), "<TurnNumber>k__BackingField")
+                .SetValue(playerState, snapshot.turnNumber);
+            AccessTools.Field(typeof(PlayerCombatState), "_phase").SetValue(playerState, snapshot.phase);
+            AccessTools.Field(typeof(PlayerCombatState), "_energy").SetValue(playerState, snapshot.energy);
+            AccessTools.Field(typeof(PlayerCombatState), "_stars").SetValue(playerState, snapshot.stars);
+        }
     }
 
     private sealed class LoadRunListener : ILoadRunLobbyListener

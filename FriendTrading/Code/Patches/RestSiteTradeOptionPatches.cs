@@ -74,6 +74,6 @@ internal static class RestSiteRoomExitPatch
     [HarmonyPrefix]
     private static void Prefix()
     {
-        FriendTradeCoordinator.CancelLocalPendingOffers();
+        FriendTradeCoordinator.CancelAllPendingOffers();
     }
 }

@@ -5,9 +5,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Godot;
 using MegaCrit.Sts2.Core.Helpers;
+using MegaCrit.Sts2.Core.Localization.Fonts;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
+using MegaCrit.Sts2.addons.mega_text;
 
 namespace JoinInProgress.Join;
 
@@ -71,12 +73,12 @@ internal sealed partial class LateJoinCharacterPicker : Control
         content.AddThemeConstantOverride("separation", 18);
         margin.AddChild(content);
 
-        Label title = NewLabel("JOIN IN PROGRESS", 34, new Color(0.93f, 0.77f, 0.36f));
+        Label title = NewLabel("JOIN IN PROGRESS", 34, StsColors.gold);
         content.AddChild(title);
         content.AddChild(NewLabel(
             "Choose a character. You will replay the party's completed rooms before the next floor begins.",
             20,
-            new Color(0.82f, 0.84f, 0.88f)));
+            StsColors.cream));
 
         GridContainer grid = new() { Columns = 2 };
         grid.AddThemeConstantOverride("h_separation", 14);
@@ -126,10 +128,11 @@ internal sealed partial class LateJoinCharacterPicker : Control
             Text = text,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            Modulate = color
+            AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
-        label.AddThemeFontSizeOverride("font_size", fontSize);
+        label.AddThemeFontSizeOverride(ThemeConstants.Label.FontSize, fontSize);
+        label.AddThemeColorOverride(ThemeConstants.Label.FontColor, color);
+        label.ApplyLocaleFontSubstitution(FontType.Regular, ThemeConstants.Label.Font);
         return label;
     }
 
@@ -141,7 +144,8 @@ internal sealed partial class LateJoinCharacterPicker : Control
             FocusMode = FocusModeEnum.All,
             MouseDefaultCursorShape = Control.CursorShape.PointingHand
         };
-        button.AddThemeFontSizeOverride("font_size", 21);
+        button.AddThemeFontSizeOverride(ThemeConstants.Label.FontSize, 21);
+        button.ApplyLocaleFontSubstitution(FontType.Regular, ThemeConstants.Label.Font);
         button.AddThemeStyleboxOverride("normal", CreateButtonStyle(new Color(0.09f, 0.12f, 0.16f)));
         button.AddThemeStyleboxOverride("hover", CreateButtonStyle(new Color(0.14f, 0.19f, 0.25f)));
         button.AddThemeStyleboxOverride("focus", CreateButtonStyle(new Color(0.16f, 0.22f, 0.29f), new Color(0.93f, 0.77f, 0.36f)));

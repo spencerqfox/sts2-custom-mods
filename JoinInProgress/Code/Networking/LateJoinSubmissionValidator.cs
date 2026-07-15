@@ -11,6 +11,7 @@ using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Runs.History;
 using MegaCrit.Sts2.Core.Saves;
 using MegaCrit.Sts2.Core.Saves.Runs;
+using JoinInProgress.Resync;
 
 namespace JoinInProgress.Networking;
 
@@ -24,7 +25,8 @@ internal static class LateJoinSubmissionValidator
         Player hostPlayer,
         SerializablePlayer baseline,
         SerializablePlayer submitted,
-        IReadOnlyList<PlayerMapPointHistoryEntry> history)
+        IReadOnlyList<PlayerMapPointHistoryEntry> history,
+        CatchUpRewardPlan rewardPlan)
     {
         if (submitted.NetId != hostPlayer.NetId || baseline.NetId != hostPlayer.NetId)
         {
@@ -52,6 +54,10 @@ internal static class LateJoinSubmissionValidator
             throw new InvalidOperationException(
                 $"Catch-up history length mismatch. Expected {floors.Count}, received {history.Count}.");
         }
+        if (rewardPlan.Floors.Count != floors.Count)
+        {
+            throw new InvalidOperationException("The authoritative catch-up reward plan is incomplete.");
+        }
 
         Dictionary<ModelId, int> expectedDeck = CountCards(baseline.Deck);
         Dictionary<ModelId, int> gainedCards = new();
@@ -61,6 +67,7 @@ internal static class LateJoinSubmissionValidator
         Dictionary<ModelId, int> baselinePotions = CountIds(
             baseline.Potions.Select(potion => RequirePotion(potion.Id)));
         Dictionary<ModelId, int> requiredPotionAdds = new();
+        Dictionary<ModelId, int> requiredPotionRemovals = new();
         HashSet<ModelId> allowedPotionIds = baseline.Potions.Select(potion => RequirePotion(potion.Id)).ToHashSet();
         int shopRemovalCount = 0;
         int currentHp = baseline.CurrentHp;
@@ -71,39 +78,62 @@ internal static class LateJoinSubmissionValidator
         for (int i = 0; i < floors.Count; i++)
         {
             MapPointHistoryEntry floor = floors[i];
+            CatchUpFloorRewardPlan floorPlan = rewardPlan.Floors[i];
             PlayerMapPointHistoryEntry entry = history[i];
             PlayerMapPointHistoryEntry reference = GetReferenceEntry(state, floor, hostPlayer);
             ValidateHistoryEntryShape(entry, reference, hostPlayer.NetId);
 
-            HashSet<ModelId> allowedCards = reference.CardChoices
-                .Select(choice => RequireCard(choice.Card.Id))
+            List<SerializableCard> plannedCards = floorPlan.Rooms
+                .SelectMany(room => room.CardRewardGroups.SelectMany(group => group.Cards)
+                    .Concat(room.Shop?.Cards.Select(offer => offer.Card) ?? []))
+                .ToList();
+            List<ModelId> plannedRelics = floorPlan.Rooms
+                .SelectMany(room => room.RelicRewards
+                    .Concat(room.Shop?.Relics.Select(offer => offer.ModelId) ?? [])
+                    .Concat(room.AncientRelicChoices.Select(offer => RequireRelic(offer.Relic.Id))))
+                .ToList();
+            List<ModelId> plannedPotions = floorPlan.Rooms
+                .SelectMany(room => room.PotionRewards
+                    .Concat(room.Shop?.Potions.Select(offer => offer.ModelId) ?? []))
+                .ToList();
+            HashSet<ModelId> plannedAncientRelics = floorPlan.Rooms
+                .SelectMany(room => room.AncientRelicChoices.Select(offer => RequireRelic(offer.Relic.Id)))
+                .ToHashSet();
+            HashSet<ModelId> allowedCards = plannedCards
+                .Select(card => RequireCard(card.Id))
                 .Concat(reference.CardsGained.Select(card => RequireCard(card.Id)))
                 .ToHashSet();
-            HashSet<ModelId> allowedRelics = reference.RelicChoices
-                .Select(choice => RequireRelic(choice.choice))
+            HashSet<ModelId> allowedRelics = plannedRelics
+                .Select(RequireRelic)
+                .Concat(reference.RelicChoices.Select(choice => RequireRelic(choice.choice)))
                 .ToHashSet();
-            HashSet<ModelId> floorPotionIds = reference.PotionChoices
-                .Select(choice => RequirePotion(choice.choice))
+            HashSet<ModelId> floorPotionIds = plannedPotions
+                .Select(RequirePotion)
+                .Concat(reference.PotionChoices.Select(choice => RequirePotion(choice.choice)))
                 .ToHashSet();
             allowedPotionIds.UnionWith(floorPotionIds);
             bool hasCombat = floor.Rooms.Any(room => room.RoomType is RoomType.Monster or RoomType.Elite or RoomType.Boss);
             bool hasShop = floor.HasRoomOfType(RoomType.Shop);
             bool hasTreasure = floor.HasRoomOfType(RoomType.Treasure);
-            bool eventOnly = floor.Rooms.Count > 0 && floor.Rooms.All(room => room.RoomType == RoomType.Event);
+            bool eventOnly = floor.MapPointType != MegaCrit.Sts2.Core.Map.MapPointType.Ancient &&
+                             floor.Rooms.Count > 0 && floor.Rooms.All(room => room.RoomType == RoomType.Event);
             bool followedEvent = entry.EventChoices.Count > 0 ||
                                  (eventOnly && HasRecordedEventOutcome(entry));
-            int distinctCardOffers = reference.CardChoices.Select(choice => RequireCard(choice.Card.Id)).Distinct().Count();
-            int distinctRelicOffers = reference.RelicChoices.Select(choice => RequireRelic(choice.choice)).Distinct().Count();
-            int maxCardGains = (hasCombat && reference.CardChoices.Count > 0 ? 1 : 0) +
-                               (hasShop ? distinctCardOffers : 0) +
+            int cardRewardGroups = floorPlan.Rooms.Sum(room => room.CardRewardGroups.Count);
+            int plannedShopCards = floorPlan.Rooms.Sum(room => room.Shop?.Cards.Count ?? 0);
+            int plannedRelicRewards = floorPlan.Rooms.Sum(room => room.RelicRewards.Count);
+            int plannedShopRelics = floorPlan.Rooms.Sum(room => room.Shop?.Relics.Count ?? 0);
+            int plannedAncientChoices = floorPlan.Rooms.Sum(room => room.AncientRelicChoices.Count);
+            int plannedPotionRewards = floorPlan.Rooms.Sum(room => room.PotionRewards.Count);
+            int plannedShopPotions = floorPlan.Rooms.Sum(room => room.Shop?.Potions.Count ?? 0);
+            int maxCardGains = cardRewardGroups + plannedShopCards +
                                (eventOnly && followedEvent ? reference.CardsGained.Count : 0);
-            int maxRelicGains = (hasCombat && reference.RelicChoices.Count > 0 ? 1 : 0) +
-                                (hasTreasure && reference.RelicChoices.Count > 0 ? 1 : 0) +
-                                (hasShop ? distinctRelicOffers : 0) +
+            int maxRelicGains = plannedRelicRewards + plannedShopRelics +
+                                (plannedAncientChoices > 0 ? 1 : 0) +
                                 (eventOnly && followedEvent
                                     ? reference.RelicChoices.Count(choice => choice.wasPicked)
                                     : 0);
-            int maxPotionGains = (hasCombat && reference.PotionChoices.Count > 0 ? 1 : 0) +
+            int maxPotionGains = plannedPotionRewards + plannedShopPotions +
                                  (eventOnly && followedEvent
                                      ? reference.PotionChoices.Count(choice => choice.wasPicked)
                                      : 0);
@@ -113,10 +143,16 @@ internal static class LateJoinSubmissionValidator
             if (entry.CardsGained.Count > maxCardGains ||
                 entry.RelicChoices.Count(choice => choice.wasPicked) > maxRelicGains ||
                 entry.PotionChoices.Count(choice => choice.wasPicked) > maxPotionGains ||
+                entry.PotionDiscarded.Count > maxPotionGains ||
                 entry.CardsRemoved.Count > maxCardRemovals ||
-                entry.BoughtPotions.Count > (hasShop ? floorPotionIds.Count : 0))
+                entry.BoughtPotions.Count > plannedShopPotions)
             {
                 throw new InvalidOperationException($"Too many rewards were selected on catch-up floor {i + 1}.");
+            }
+            if (entry.AncientChoices.Count > plannedAncientChoices ||
+                entry.AncientChoices.Count(choice => choice.WasChosen) > (plannedAncientChoices > 0 ? 1 : 0))
+            {
+                throw new InvalidOperationException($"The Ancient choice was altered on catch-up floor {i + 1}.");
             }
 
             foreach (SerializableCard card in entry.CardsGained)
@@ -176,7 +212,7 @@ internal static class LateJoinSubmissionValidator
                 if (choice.wasPicked)
                 {
                     RelicModel relic = ModelDb.GetById<RelicModel>(id);
-                    if (!CanReplayRelic(relic))
+                    if (!CanReplayRelic(relic) && !plannedAncientRelics.Contains(id))
                     {
                         throw new InvalidOperationException(
                             $"Relic {relic.Id.Entry} has custom pickup logic that cannot be synchronized safely.");
@@ -205,13 +241,21 @@ internal static class LateJoinSubmissionValidator
                 }
                 Increment(requiredPotionAdds, potionId);
             }
-            int expectedDamage = floor.PlayerStats
-                .Where(stat => stat.PlayerId != hostPlayer.NetId)
-                .Select(stat => stat.DamageTaken)
-                .DefaultIfEmpty(0)
-                .Max();
+            foreach (ModelId id in entry.PotionDiscarded)
+            {
+                ModelId potionId = RequirePotion(id);
+                if (!allowedPotionIds.Contains(potionId))
+                {
+                    throw new InvalidOperationException("A discarded potion was not present during catch-up.");
+                }
+                Increment(requiredPotionRemovals, potionId);
+            }
+            int expectedDamage = reference.DamageTaken;
+            int expectedGoldGain = hasCombat
+                ? floorPlan.Rooms.Sum(room => Math.Max(0, room.Gold))
+                : Math.Max(0, reference.GoldGained);
             if (entry.DamageTaken != expectedDamage ||
-                entry.GoldGained != Math.Max(0, reference.GoldGained) ||
+                entry.GoldGained != expectedGoldGain ||
                 entry.GoldLost != Math.Max(0, reference.GoldLost + reference.GoldStolen))
             {
                 throw new InvalidOperationException($"The floor ledger was altered on catch-up floor {i + 1}.");
@@ -228,7 +272,16 @@ internal static class LateJoinSubmissionValidator
             maxHp = Math.Max(1, maxHp + entry.MaxHpGained - entry.MaxHpLost);
             currentHp = Math.Min(currentHp, maxHp);
             int mendCount = entry.RestSiteChoices.Count(choice => choice == "MEND");
-            int healBudget = Math.Max(0, reference.HpHealed) + mendCount * maxHp;
+            int ancientHealPercent = floorPlan.Rooms.Select(room => room.AncientHealPercent).DefaultIfEmpty(0).Max();
+            int ancientHealBudget = (int)((maxHp - currentHp) * ancientHealPercent / 100m);
+            if (ancientHealPercent > 0 && entry.HpHealed != ancientHealBudget)
+            {
+                throw new InvalidOperationException($"The Ancient healing ledger was altered on catch-up floor {i + 1}.");
+            }
+            int referenceHealBudget = floor.MapPointType == MegaCrit.Sts2.Core.Map.MapPointType.Ancient
+                ? 0
+                : Math.Max(0, reference.HpHealed);
+            int healBudget = referenceHealBudget + mendCount * maxHp + ancientHealBudget;
             if (entry.HpHealed < 0 ||
                 entry.HpHealed > healBudget ||
                 entry.HpHealed > Math.Max(0, maxHp - currentHp))
@@ -238,7 +291,7 @@ internal static class LateJoinSubmissionValidator
             currentHp = Math.Min(maxHp, currentHp + entry.HpHealed);
             currentHp -= Math.Min(entry.DamageTaken, Math.Max(0, currentHp - 1));
 
-            int expectedSpend = GetExpectedSpend(floor, entry, reference, removalPriceIndex);
+            int expectedSpend = GetExpectedSpend(floor, floorPlan, entry, reference, removalPriceIndex);
             int removalsThisFloor = floor.HasRoomOfType(RoomType.Shop) ? entry.CardsRemoved.Count : 0;
             removalPriceIndex += removalsThisFloor;
             shopRemovalCount += removalsThisFloor;
@@ -274,15 +327,17 @@ internal static class LateJoinSubmissionValidator
 
         ValidateFinalStats(submitted, baseline, currentHp, maxHp, gold, shopRemovalCount);
         List<SerializableCard> sanitizedDeck = SanitizeDeck(
-            submitted.Deck, baseline, floors, upgrades, state, hostPlayer);
-        List<SerializableRelic> sanitizedRelics = SanitizeRelics(baseline, acquiredRelics);
+            submitted.Deck, baseline, floors, upgrades, state, hostPlayer, rewardPlan);
+        List<SerializableRelic> sanitizedRelics = SanitizeRelics(
+            baseline, acquiredRelics, submitted.Relics, floors.Count, rewardPlan);
         ValidateSubmittedRelics(submitted.Relics, sanitizedRelics);
         ValidateSubmittedPotions(
             submitted.Potions,
             baseline,
             allowedPotionIds,
             baselinePotions,
-            requiredPotionAdds);
+            requiredPotionAdds,
+            requiredPotionRemovals);
 
         RelicGrabBag relicBag = RelicGrabBag.FromSerializable(baseline.RelicGrabBag);
         foreach (ModelId relicId in acquiredRelics)
@@ -338,7 +393,7 @@ internal static class LateJoinSubmissionValidator
                         entry.PotionChoices.Count + entry.PotionDiscarded.Count + entry.PotionUsed.Count +
                         entry.CardsRemoved.Count + entry.RelicsRemoved.Count + entry.CardsEnchanted.Count +
                         entry.CardsTransformed.Count + entry.UpgradedCards.Count + entry.DowngradedCards.Count +
-                        entry.EventChoices.Count + entry.RestSiteChoices.Count + entry.BoughtRelics.Count +
+                        entry.EventChoices.Count + entry.AncientChoices.Count + entry.RestSiteChoices.Count + entry.BoughtRelics.Count +
                         entry.BoughtPotions.Count + entry.BoughtColorless.Count + entry.CompletedQuests.Count;
         if (listCount > MaxHistoryEntriesPerFloor)
         {
@@ -347,11 +402,10 @@ internal static class LateJoinSubmissionValidator
         if (entry.GoldGained < 0 || entry.GoldSpent < 0 || entry.GoldLost < 0 ||
             entry.DamageTaken < 0 || entry.HpHealed < 0 || entry.MaxHpGained < 0 || entry.MaxHpLost < 0 ||
             entry.GoldStolen != 0 || entry.StolenLoot != 0 ||
-            entry.PotionDiscarded.Count != 0 || entry.PotionUsed.Count != 0 ||
+            entry.PotionUsed.Count != 0 ||
             entry.RelicsRemoved.Count != 0 || entry.CardsEnchanted.Count != 0 ||
             entry.CardsTransformed.Count != 0 || entry.DowngradedCards.Count != 0 ||
-            entry.AncientChoices.Count != 0 || entry.BoughtRelics.Count != 0 ||
-            entry.BoughtColorless.Count != 0 || entry.CompletedQuests.Count != 0)
+            entry.BoughtRelics.Count != 0 || entry.BoughtColorless.Count != 0 || entry.CompletedQuests.Count != 0)
         {
             throw new InvalidOperationException("A catch-up history entry contains unsupported changes.");
         }
@@ -391,12 +445,16 @@ internal static class LateJoinSubmissionValidator
         IReadOnlyList<MapPointHistoryEntry> floors,
         IReadOnlyDictionary<ModelId, int> upgrades,
         RunState state,
-        Player hostPlayer)
+        Player hostPlayer,
+        CatchUpRewardPlan rewardPlan)
     {
         Dictionary<ModelId, List<SerializableCard>> authoritativeCards = baseline.Deck
+            .Concat(rewardPlan.Floors.SelectMany(floor => floor.Rooms)
+                .SelectMany(room => room.CardRewardGroups.SelectMany(group => group.Cards)
+                    .Concat(room.Shop?.Cards.Select(offer => offer.Card) ?? [])))
             .Concat(floors
                 .Select(floor => GetReferenceEntry(state, floor, hostPlayer))
-                .SelectMany(entry => entry.CardChoices.Select(choice => choice.Card).Concat(entry.CardsGained)))
+                .SelectMany(entry => entry.CardsGained))
             .GroupBy(card => RequireCard(card.Id))
             .ToDictionary(group => group.Key, group => group.ToList());
         Dictionary<ModelId, int> maxBaseUpgrade = authoritativeCards.Values
@@ -439,9 +497,25 @@ internal static class LateJoinSubmissionValidator
 
     private static List<SerializableRelic> SanitizeRelics(
         SerializablePlayer baseline,
-        IReadOnlyList<ModelId> acquiredRelics)
+        IReadOnlyList<ModelId> acquiredRelics,
+        IReadOnlyList<SerializableRelic> submitted,
+        int floorCount,
+        CatchUpRewardPlan rewardPlan)
     {
         List<SerializableRelic> result = baseline.Relics.ToList();
+        Dictionary<ModelId, Queue<SerializableRelic>> submittedById = submitted
+            .GroupBy(relic => RequireRelic(relic.Id))
+            .ToDictionary(group => group.Key, group => new Queue<SerializableRelic>(group));
+        foreach (SerializableRelic relic in baseline.Relics)
+        {
+            submittedById[RequireRelic(relic.Id)].Dequeue();
+        }
+        Dictionary<ModelId, Queue<SerializableRelic>> ancientRelics = rewardPlan.Floors
+            .SelectMany(floor => floor.Rooms)
+            .SelectMany(room => room.AncientRelicChoices)
+            .Select(offer => offer.Relic)
+            .GroupBy(relic => RequireRelic(relic.Id))
+            .ToDictionary(group => group.Key, group => new Queue<SerializableRelic>(group));
         foreach (ModelId id in acquiredRelics)
         {
             RelicModel canonical = ModelDb.GetById<RelicModel>(id);
@@ -449,7 +523,22 @@ internal static class LateJoinSubmissionValidator
             {
                 throw new InvalidOperationException($"Relic {id.Entry} cannot be acquired more than once.");
             }
-            result.Add(canonical.ToMutable().ToSerializable());
+            SerializableRelic submittedRelic = submittedById[id].Dequeue();
+            if (submittedRelic.FloorAddedToDeck is not int floor || floor < 1 || floor > floorCount)
+            {
+                throw new InvalidOperationException($"Relic {id.Entry} has an invalid acquisition floor.");
+            }
+            SerializableRelic template = ancientRelics.TryGetValue(id, out Queue<SerializableRelic>? ancientQueue) &&
+                                           ancientQueue.Count > 0
+                ? ancientQueue.Dequeue()
+                : canonical.ToMutable().ToSerializable();
+            SerializableRelic sanitized = new()
+            {
+                Id = template.Id,
+                Props = template.Props
+            };
+            sanitized.FloorAddedToDeck = floor;
+            result.Add(sanitized);
         }
         return result;
     }
@@ -460,7 +549,11 @@ internal static class LateJoinSubmissionValidator
     {
         Dictionary<ModelId, int> submittedCounts = CountIds(submitted.Select(relic => RequireRelic(relic.Id)));
         Dictionary<ModelId, int> expectedCounts = CountIds(expected.Select(relic => RequireRelic(relic.Id)));
-        if (!CountsEqual(submittedCounts, expectedCounts))
+        bool stateMatches = submitted.Count == expected.Count && submitted.Zip(expected).All(pair =>
+            pair.First.Id == pair.Second.Id &&
+            pair.First.FloorAddedToDeck == pair.Second.FloorAddedToDeck &&
+            string.Equals(pair.First.Props?.ToString(), pair.Second.Props?.ToString(), StringComparison.Ordinal));
+        if (!CountsEqual(submittedCounts, expectedCounts) || !stateMatches)
         {
             throw new InvalidOperationException("The submitted relics do not match the recorded catch-up choices.");
         }
@@ -471,7 +564,8 @@ internal static class LateJoinSubmissionValidator
         SerializablePlayer baseline,
         IReadOnlySet<ModelId> allowedPotionIds,
         IReadOnlyDictionary<ModelId, int> baselinePotions,
-        IReadOnlyDictionary<ModelId, int> requiredAdds)
+        IReadOnlyDictionary<ModelId, int> requiredAdds,
+        IReadOnlyDictionary<ModelId, int> requiredRemovals)
     {
         if (submitted.Count > baseline.MaxPotionSlotCount ||
             submitted.Select(potion => potion.SlotIndex).Distinct().Count() != submitted.Count)
@@ -492,11 +586,13 @@ internal static class LateJoinSubmissionValidator
             submitted.Select(potion => RequirePotion(potion.Id)));
         HashSet<ModelId> allIds = baselinePotions.Keys
             .Concat(requiredAdds.Keys)
+            .Concat(requiredRemovals.Keys)
             .Concat(submittedCounts.Keys)
             .ToHashSet();
         foreach (ModelId id in allIds)
         {
-            int expected = baselinePotions.GetValueOrDefault(id) + requiredAdds.GetValueOrDefault(id);
+            int expected = baselinePotions.GetValueOrDefault(id) + requiredAdds.GetValueOrDefault(id) -
+                           requiredRemovals.GetValueOrDefault(id);
             int actual = submittedCounts.GetValueOrDefault(id);
             if (actual != expected)
             {
@@ -547,6 +643,7 @@ internal static class LateJoinSubmissionValidator
 
     private static int GetExpectedSpend(
         MapPointHistoryEntry floor,
+        CatchUpFloorRewardPlan floorPlan,
         PlayerMapPointHistoryEntry entry,
         PlayerMapPointHistoryEntry reference,
         int removalPriceIndex)
@@ -554,12 +651,23 @@ internal static class LateJoinSubmissionValidator
         int spend = 0;
         if (floor.HasRoomOfType(RoomType.Shop))
         {
+            List<CatchUpShopCardOffer> cardOffers = floorPlan.Rooms
+                .SelectMany(room => room.Shop?.Cards ?? [])
+                .ToList();
+            Dictionary<ModelId, int> relicCosts = floorPlan.Rooms
+                .SelectMany(room => room.Shop?.Relics ?? [])
+                .ToDictionary(offer => offer.ModelId, offer => offer.Cost);
+            Dictionary<ModelId, int> potionCosts = floorPlan.Rooms
+                .SelectMany(room => room.Shop?.Potions ?? [])
+                .ToDictionary(offer => offer.ModelId, offer => offer.Cost);
             spend += entry.CardChoices.Where(choice => choice.wasPicked)
-                .Sum(choice => GetCardPrice(ModelDb.GetById<CardModel>(RequireCard(choice.Card.Id))));
+                .Where(choice => cardOffers.Any(offer => CardMetadataMatches(offer.Card, choice.Card)))
+                .Sum(choice => cardOffers.First(offer => CardMetadataMatches(offer.Card, choice.Card)).Cost);
             spend += entry.RelicChoices.Where(choice => choice.wasPicked)
-                .Sum(choice => ModelDb.GetById<RelicModel>(RequireRelic(choice.choice)).MerchantCost);
+                .Where(choice => relicCosts.ContainsKey(RequireRelic(choice.choice)))
+                .Sum(choice => relicCosts[RequireRelic(choice.choice)]);
             spend += entry.BoughtPotions
-                .Sum(id => GetPotionPrice(ModelDb.GetById<PotionModel>(RequirePotion(id))));
+                .Sum(id => potionCosts[RequirePotion(id)]);
             for (int i = 0; i < entry.CardsRemoved.Count; i++)
             {
                 spend += 75 + 25 * (removalPriceIndex + i);
@@ -567,32 +675,11 @@ internal static class LateJoinSubmissionValidator
         }
         if (floor.HasRoomOfType(RoomType.Event) &&
             !floor.HasRoomOfType(RoomType.Shop) &&
-            entry.EventChoices.Count > 0)
+            HasRecordedEventOutcome(entry))
         {
             spend += Math.Max(0, reference.GoldSpent);
         }
         return spend;
-    }
-
-    private static int GetCardPrice(CardModel card)
-    {
-        int cost = card.Rarity switch
-        {
-            CardRarity.Rare => 150,
-            CardRarity.Uncommon => 75,
-            _ => 50
-        };
-        return card.Pool is ColorlessCardPool ? (int)Math.Round(cost * 1.15f) : cost;
-    }
-
-    private static int GetPotionPrice(PotionModel potion)
-    {
-        return potion.Rarity switch
-        {
-            PotionRarity.Rare => 100,
-            PotionRarity.Uncommon => 75,
-            _ => 50
-        };
     }
 
     private static Dictionary<ModelId, int> CountCards(IEnumerable<SerializableCard> cards)

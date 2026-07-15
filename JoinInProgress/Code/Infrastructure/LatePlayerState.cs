@@ -126,36 +126,6 @@ internal static class LatePlayerState
         EnsureMapVoteUi(state);
     }
 
-    public static void AlignProgressionWithReference(Player player, Player reference)
-    {
-        var playerRng = player.PlayerRng.ToSerializable();
-        var referenceRng = reference.PlayerRng.ToSerializable();
-        foreach (var (rngType, counter) in referenceRng.Counters)
-        {
-            if (!playerRng.Counters.TryGetValue(rngType, out int current) || counter > current)
-            {
-                playerRng.Counters[rngType] = counter;
-            }
-        }
-        player.PlayerRng.LoadFromSerializable(playerRng);
-        player.PlayerOdds.LoadFromSerializable(reference.PlayerOdds.ToSerializable());
-
-        foreach (var choice in ((RunState)player.RunState).MapPointHistory
-                     .SelectMany(act => act)
-                     .SelectMany(floor => floor.PlayerStats.First(entry => entry.PlayerId == reference.NetId).RelicChoices))
-        {
-            var relic = MegaCrit.Sts2.Core.Models.ModelDb.GetByIdOrNull<MegaCrit.Sts2.Core.Models.RelicModel>(choice.choice);
-            if (relic != null)
-            {
-                player.RelicGrabBag.Remove(relic);
-            }
-        }
-        foreach (RelicModel relic in player.Relics)
-        {
-            player.RelicGrabBag.Remove(ModelDb.GetById<RelicModel>(relic.Id));
-        }
-    }
-
     public static void ApplyLocalAuthoritativeSnapshot(Player player, SerializablePlayer snapshot)
     {
         SerializablePlayer local = player.ToSerializable();
@@ -166,6 +136,21 @@ internal static class LatePlayerState
         if (!relicsMatch || !potionsMatch)
         {
             throw new InvalidOperationException("The host snapshot did not match the locally replayed relics and potions.");
+        }
+
+        for (int i = 0; i < player.Relics.Count; i++)
+        {
+            RelicModel relic = player.Relics[i];
+            SerializableRelic authoritative = snapshot.Relics[i];
+            authoritative.Props?.Fill(relic);
+            relic.FloorAddedToDeck = authoritative.FloorAddedToDeck ?? 0;
+            SerializableRelic applied = relic.ToSerializable();
+            if (applied.Id != authoritative.Id ||
+                applied.FloorAddedToDeck != authoritative.FloorAddedToDeck ||
+                !string.Equals(applied.Props?.ToString(), authoritative.Props?.ToString(), StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("The authoritative relic state could not be applied locally.");
+            }
         }
 
         RunState state = (RunState)player.RunState;

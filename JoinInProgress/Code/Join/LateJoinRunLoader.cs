@@ -75,7 +75,10 @@ internal static class LateJoinRunLoader
             if (ready.IsLateJoin)
             {
                 LateJoinNetwork.SetMapTravelEnabled(enabled: false);
-                CatchUpScreen.Show(state, state.GetPlayer(netService.NetId)!);
+                CatchUpScreen.Show(
+                    state,
+                    state.GetPlayer(netService.NetId)!,
+                    ready.RewardPlan ?? throw new InvalidOperationException("The catch-up reward plan is missing."));
             }
 
             Log.Info(ready.IsLateJoin

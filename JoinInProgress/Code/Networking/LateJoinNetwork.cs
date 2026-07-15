@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using HarmonyLib;
 using MegaCrit.Sts2.Core.Assets;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Multiplayer;
@@ -27,6 +28,8 @@ internal static class LateJoinNetwork
         public required SerializableRunRngSet RunRng { get; init; }
         public required SerializableRelicGrabBag SharedRelicGrabBag { get; init; }
         public SerializablePlayer? BaselinePlayer { get; set; }
+        public CatchUpRewardPlan? RewardPlan { get; set; }
+        public HashSet<ulong> AwaitingSnapshotAcks { get; } = new();
     }
 
     private static readonly object SyncRoot = new();
@@ -44,11 +47,14 @@ internal static class LateJoinNetwork
 
         Detach();
         _service = service;
+        service.RegisterMessageHandler<LateJoinAvailabilityRequestMessage>(OnAvailabilityRequested);
         service.RegisterMessageHandler<LateJoinProfileMessage>(OnProfileReceived);
         service.RegisterMessageHandler<LateJoinPlayerAddedMessage>(OnPlayerAddedReceived);
         service.RegisterMessageHandler<LateJoinPlayerRemovedMessage>(OnPlayerRemovedReceived);
         service.RegisterMessageHandler<LateJoinCatchUpCompleteMessage>(OnCatchUpCompleteReceived);
         service.RegisterMessageHandler<LateJoinSnapshotMessage>(OnSnapshotReceived);
+        service.RegisterMessageHandler<LateJoinSnapshotAppliedMessage>(OnSnapshotAppliedReceived);
+        service.RegisterMessageHandler<LateJoinSnapshotCommittedMessage>(OnSnapshotCommittedReceived);
         if (service is NetHostGameService host)
         {
             host.ClientDisconnected += OnHostClientDisconnected;
@@ -59,11 +65,14 @@ internal static class LateJoinNetwork
     {
         if (_service != null)
         {
+            _service.UnregisterMessageHandler<LateJoinAvailabilityRequestMessage>(OnAvailabilityRequested);
             _service.UnregisterMessageHandler<LateJoinProfileMessage>(OnProfileReceived);
             _service.UnregisterMessageHandler<LateJoinPlayerAddedMessage>(OnPlayerAddedReceived);
             _service.UnregisterMessageHandler<LateJoinPlayerRemovedMessage>(OnPlayerRemovedReceived);
             _service.UnregisterMessageHandler<LateJoinCatchUpCompleteMessage>(OnCatchUpCompleteReceived);
             _service.UnregisterMessageHandler<LateJoinSnapshotMessage>(OnSnapshotReceived);
+            _service.UnregisterMessageHandler<LateJoinSnapshotAppliedMessage>(OnSnapshotAppliedReceived);
+            _service.UnregisterMessageHandler<LateJoinSnapshotCommittedMessage>(OnSnapshotCommittedReceived);
             if (_service is NetHostGameService host)
             {
                 host.ClientDisconnected -= OnHostClientDisconnected;
@@ -116,6 +125,21 @@ internal static class LateJoinNetwork
             Player = player.ToSerializable(),
             History = LatePlayerState.CaptureHistory(state, player.NetId)
         });
+    }
+
+    private static void OnAvailabilityRequested(LateJoinAvailabilityRequestMessage message, ulong senderId)
+    {
+        if (_service?.Type != NetGameType.Host)
+        {
+            return;
+        }
+
+        RunState? state = RunManager.Instance.DebugOnlyGetState();
+        bool isExistingPlayer = state?.GetPlayer(senderId) != null;
+        _service.SendMessage(new LateJoinAvailabilityResponseMessage
+        {
+            Allowed = isExistingPlayer || IsSafeCheckpoint()
+        }, senderId);
     }
 
     private static void OnProfileReceived(LateJoinProfileMessage message, ulong senderId)
@@ -211,10 +235,8 @@ internal static class LateJoinNetwork
                 state.Rng.LoadFromSerializable(transaction.RunRng);
                 player.InitializeSeed(state.Rng.StringSeed);
                 LatePlayerState.InitializeRelicProgression(state, player);
-                List<Player> originals = state.Players.Where(candidate => candidate.NetId != senderId).ToList();
-                Player reference = originals.FirstOrDefault(candidate => candidate.Character.Id == character.Id)
-                                   ?? originals.First();
-                LatePlayerState.AlignProgressionWithReference(player, reference);
+                CatchUpRewardPlan rewardPlan = await CatchUpRewardPlanGenerator.GenerateAsync(state, player);
+                CatchUpRewardPlanGenerator.ApplyProgression(player, rewardPlan);
                 LatePlayerState.RefreshUnlockState(state);
                 LatePlayerState.EnsureHistoryEntries(state, senderId);
                 LatePlayerState.ExtendFixedPlayerState(senderId);
@@ -239,6 +261,7 @@ internal static class LateJoinNetwork
                         return;
                     }
                     current.BaselinePlayer = player.ToSerializable();
+                    current.RewardPlan = rewardPlan;
                 }
                 isLateJoin = true;
                 Log.Info($"[JoinInProgress] Added late player {senderId} as {character.Id.Entry}.");
@@ -309,8 +332,19 @@ internal static class LateJoinNetwork
             NextActionId = RunManager.Instance.ActionQueueSet.NextActionId,
             NextHookId = RunManager.Instance.ActionQueueSynchronizer.NextHookId,
             NextChecksumId = RunManager.Instance.ChecksumTracker.NextId,
-            MapGenerationCount = RunManager.Instance.MapSelectionSynchronizer.MapGenerationCount
+            MapGenerationCount = RunManager.Instance.MapSelectionSynchronizer.MapGenerationCount,
+            RewardPlan = GetRewardPlan(senderId)
         }, senderId);
+    }
+
+    private static CatchUpRewardPlan? GetRewardPlan(ulong playerId)
+    {
+        lock (SyncRoot)
+        {
+            return PendingPlayers.TryGetValue(playerId, out PendingJoin? pending)
+                ? pending.RewardPlan
+                : null;
+        }
     }
 
     private static void SendPlayerAddedToExistingPeers(Player player, ulong joiningPlayerId)
@@ -397,7 +431,10 @@ internal static class LateJoinNetwork
         {
             Log.Info($"[JoinInProgress] Rolling back disconnected late player {playerId}.");
             AbortPendingJoin(playerId, transaction);
+            return;
         }
+
+        CompleteAckForDisconnectedPeer(playerId);
     }
 
     private static void OnCatchUpCompleteReceived(LateJoinCatchUpCompleteMessage message, ulong senderId)
@@ -416,7 +453,6 @@ internal static class LateJoinNetwork
             {
                 return;
             }
-            PendingPlayers.Remove(senderId);
         }
 
         AcceptCompletedCatchUp(message, senderId, transaction);
@@ -443,8 +479,21 @@ internal static class LateJoinNetwork
                 player,
                 transaction.BaselinePlayer,
                 message.Player,
-                message.History);
+                message.History,
+                transaction.RewardPlan ?? throw new InvalidOperationException("The catch-up reward plan is missing."));
             player.SyncWithSerializedPlayer(sanitized);
+            foreach (ModelId relicId in message.History
+                         .SelectMany(entry => entry.RelicChoices)
+                         .Where(choice => choice.wasPicked)
+                         .Select(choice => choice.choice)
+                         .Distinct())
+            {
+                RelicModel relic = ModelDb.GetById<RelicModel>(relicId);
+                if (!relic.IsStackable)
+                {
+                    state.SharedRelicGrabBag.Remove(relic);
+                }
+            }
             LatePlayerState.ApplyHistory(state, senderId, message.History);
             LatePlayerState.EnsurePlayerUi(state);
 
@@ -453,15 +502,32 @@ internal static class LateJoinNetwork
                 Player = player.ToSerializable(),
                 History = LatePlayerState.CaptureHistory(state, senderId),
                 RunRng = state.Rng.ToSerializable(),
-                SharedRelicGrabBag = state.SharedRelicGrabBag.ToSerializable()
+                SharedRelicGrabBag = state.SharedRelicGrabBag.ToSerializable(),
+                NextActionId = RunManager.Instance.ActionQueueSet.NextActionId,
+                NextHookId = RunManager.Instance.ActionQueueSynchronizer.NextHookId,
+                NextChecksumId = RunManager.Instance.ChecksumTracker.NextId,
+                MapGenerationCount = RunManager.Instance.MapSelectionSynchronizer.MapGenerationCount,
+                NextChoiceIds = RunManager.Instance.PlayerChoiceSynchronizer.ChoiceIds.ToList(),
+                NextRewardIds = RunManager.Instance.RewardsSetSynchronizer.GetNextRewardIds().ToList()
             };
+
+            lock (SyncRoot)
+            {
+                foreach (NetClientData peer in ((NetHostGameService)_service).ConnectedPeers
+                             .Where(peer => peer.readyForBroadcasting))
+                {
+                    transaction.AwaitingSnapshotAcks.Add(peer.peerId);
+                }
+                transaction.AwaitingSnapshotAcks.Add(senderId);
+            }
             _service.SendMessage(snapshot);
-            Log.Info($"[JoinInProgress] Catch-up complete for player {senderId}.");
+            TaskHelper.RunSafely(WaitForSnapshotAcks(senderId, transaction));
+            Log.Info($"[JoinInProgress] Waiting for snapshot acknowledgements for player {senderId}.");
         }
         catch (Exception exception)
         {
             Log.Error($"[JoinInProgress] Rejected catch-up state from {senderId}: {exception}");
-            RollBackPlayer(senderId, transaction);
+            AbortPendingJoin(senderId, transaction);
             if (_service is NetHostGameService host && IsHostPeerConnected(senderId))
             {
                 host.DisconnectClient(senderId, NetError.InternalError);
@@ -469,10 +535,6 @@ internal static class LateJoinNetwork
         }
         finally
         {
-            lock (SyncRoot)
-            {
-                CompletingPlayers.Remove(senderId);
-            }
             UpdateMapTravelLock();
         }
     }
@@ -487,6 +549,7 @@ internal static class LateJoinNetwork
                 return;
             }
             PendingPlayers.Remove(playerId);
+            CompletingPlayers.Remove(playerId);
         }
         RollBackPlayer(playerId, expectedTransaction);
         UpdateMapTravelLock();
@@ -556,9 +619,130 @@ internal static class LateJoinNetwork
             player.SyncWithSerializedPlayer(message.Player);
         }
         LatePlayerState.ApplyHistory(state, message.Player.NetId, message.History);
+        ApplyFinalSynchronizationCounters(message);
         LatePlayerState.EnsurePlayerUi(state);
         await PreloadManager.LoadRunAssets(new[] { player.Character });
+        RunManager.Instance.NetService.SendMessage(new LateJoinSnapshotAppliedMessage
+        {
+            PlayerId = message.Player.NetId
+        });
+    }
+
+    private static void ApplyFinalSynchronizationCounters(LateJoinSnapshotMessage message)
+    {
+        RunManager manager = RunManager.Instance;
+        if (manager.ActionQueueSet.NextActionId < message.NextActionId)
+        {
+            manager.ActionQueueSet.FastForwardNextActionId(message.NextActionId);
+        }
+        if (manager.ActionQueueSynchronizer.NextHookId < message.NextHookId)
+        {
+            manager.ActionQueueSynchronizer.FastForwardHookId(message.NextHookId);
+        }
+        if (manager.ChecksumTracker.NextId < message.NextChecksumId)
+        {
+            manager.ChecksumTracker.LoadReplayChecksums(null!, message.NextChecksumId);
+        }
+        AccessTools.Property(typeof(MapSelectionSynchronizer), nameof(MapSelectionSynchronizer.MapGenerationCount))
+            .SetValue(manager.MapSelectionSynchronizer, message.MapGenerationCount);
+        manager.PlayerChoiceSynchronizer.FastForwardChoiceIds(message.NextChoiceIds);
+        manager.RewardsSetSynchronizer.FastForwardRewardIds(message.NextRewardIds);
+    }
+
+    private static void OnSnapshotAppliedReceived(LateJoinSnapshotAppliedMessage message, ulong senderId)
+    {
+        if (_service?.Type != NetGameType.Host)
+        {
+            return;
+        }
+
+        PendingJoin? transaction;
+        bool complete;
+        lock (SyncRoot)
+        {
+            if (!PendingPlayers.TryGetValue(message.PlayerId, out transaction) ||
+                !CompletingPlayers.Contains(message.PlayerId) ||
+                !transaction.AwaitingSnapshotAcks.Remove(senderId))
+            {
+                return;
+            }
+            complete = transaction.AwaitingSnapshotAcks.Count == 0;
+        }
+        if (complete)
+        {
+            CommitPendingJoin(message.PlayerId, transaction);
+        }
+    }
+
+    private static void OnSnapshotCommittedReceived(LateJoinSnapshotCommittedMessage message, ulong senderId)
+    {
+        if (_service is not NetClientGameService client || senderId != client.HostNetId)
+        {
+            return;
+        }
         SetMapTravelEnabled(enabled: true);
-        CatchUpScreen.NotifySynchronized(message.Player.NetId);
+        CatchUpScreen.NotifySynchronized(message.PlayerId);
+    }
+
+    private static void CommitPendingJoin(ulong playerId, PendingJoin transaction)
+    {
+        lock (SyncRoot)
+        {
+            if (!PendingPlayers.TryGetValue(playerId, out PendingJoin? current) ||
+                !ReferenceEquals(current, transaction))
+            {
+                return;
+            }
+            PendingPlayers.Remove(playerId);
+            CompletingPlayers.Remove(playerId);
+        }
+
+        _service?.SendMessage(new LateJoinSnapshotCommittedMessage { PlayerId = playerId });
+        UpdateMapTravelLock();
+        Log.Info($"[JoinInProgress] Catch-up committed for player {playerId}.");
+    }
+
+    private static async Task WaitForSnapshotAcks(ulong playerId, PendingJoin transaction)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(20));
+        bool timedOut;
+        lock (SyncRoot)
+        {
+            timedOut = PendingPlayers.TryGetValue(playerId, out PendingJoin? current) &&
+                       ReferenceEquals(current, transaction) &&
+                       transaction.AwaitingSnapshotAcks.Count > 0;
+        }
+        if (!timedOut)
+        {
+            return;
+        }
+
+        Log.Error($"[JoinInProgress] Snapshot acknowledgement timed out for player {playerId}.");
+        AbortPendingJoin(playerId, transaction);
+        if (_service is NetHostGameService host && IsHostPeerConnected(playerId))
+        {
+            host.DisconnectClient(playerId, NetError.HandshakeTimeout);
+        }
+    }
+
+    private static void CompleteAckForDisconnectedPeer(ulong disconnectedPlayerId)
+    {
+        List<(ulong playerId, PendingJoin transaction)> completed = new();
+        lock (SyncRoot)
+        {
+            foreach (var pair in PendingPlayers)
+            {
+                if (CompletingPlayers.Contains(pair.Key) &&
+                    pair.Value.AwaitingSnapshotAcks.Remove(disconnectedPlayerId) &&
+                    pair.Value.AwaitingSnapshotAcks.Count == 0)
+                {
+                    completed.Add((pair.Key, pair.Value));
+                }
+            }
+        }
+        foreach (var item in completed)
+        {
+            CommitPendingJoin(item.playerId, item.transaction);
+        }
     }
 }

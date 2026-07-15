@@ -1,1 +1,4 @@
-{}
+{
+  "ROOM_IN_PROGRESS.header": "Join In Progress",
+  "ROOM_IN_PROGRESS.body": "The party is still resolving the current room. Try joining again after everyone has returned to the map."
+}

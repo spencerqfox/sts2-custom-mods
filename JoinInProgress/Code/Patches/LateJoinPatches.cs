@@ -7,12 +7,14 @@ using System.Threading.Tasks;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Multiplayer;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Multiplayer;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
 using MegaCrit.Sts2.Core.Multiplayer.Game.Lobby;
 using MegaCrit.Sts2.Core.Multiplayer.Connection;
 using MegaCrit.Sts2.Core.Multiplayer.Messages.Lobby;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves;
 using MegaCrit.Sts2.Core.Unlocks;
@@ -42,7 +44,7 @@ internal static class AllowLateConnectionPatch
     private static bool Prefix(RunLobby __instance, ulong playerId)
     {
         var players = (IPlayerCollection)AccessTools.Field(typeof(RunLobby), "_playerCollection").GetValue(__instance)!;
-        if (players.GetPlayer(playerId) != null || !LateJoinNetwork.IsSafeCheckpoint())
+        if (players.GetPlayer(playerId) != null)
         {
             return true;
         }
@@ -107,6 +109,15 @@ internal static class JoinFlowAttemptRejoinPatch
         gameService.Disconnected += HandleDisconnected;
         try
         {
+            bool available = await QueryAvailability(gameService, phaseCancellation.Token);
+            if (!available)
+            {
+                ShowLateJoinPopup(
+                    new LocString("join_in_progress_ui", "ROOM_IN_PROGRESS.header"),
+                    new LocString("join_in_progress_ui", "ROOM_IN_PROGRESS.body"));
+                throw new OperationCanceledException("The party is still resolving the current room.");
+            }
+
             UnlockState unlockState = SaveManager.Instance.GenerateUnlockStateFromProgress();
             IReadOnlyList<CharacterModel> characters = unlockState.Characters.ToList();
             CharacterModel? character = await LateJoinCharacterPicker.Pick(
@@ -148,10 +159,11 @@ internal static class JoinFlowAttemptRejoinPatch
 
             if (!ready.Accepted)
             {
-                throw new InvalidOperationException(
-                    string.IsNullOrWhiteSpace(ready.RejectionReason)
-                        ? "The host rejected the late join."
-                        : ready.RejectionReason);
+                string reason = string.IsNullOrWhiteSpace(ready.RejectionReason)
+                    ? "The host rejected the late join."
+                    : ready.RejectionReason;
+                ShowLateJoinPopup("Join In Progress", reason);
+                throw new OperationCanceledException(reason);
             }
 
             LateJoinHandshake.Ready = ready;
@@ -181,6 +193,50 @@ internal static class JoinFlowAttemptRejoinPatch
             {
                 LateJoinHandshake.Reset();
             }
+        }
+    }
+
+    private static async Task<bool> QueryAvailability(
+        NetClientGameService gameService,
+        CancellationToken cancellationToken)
+    {
+        TaskCompletionSource<bool> completion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        void HandleResponse(LateJoinAvailabilityResponseMessage message, ulong senderId)
+        {
+            if (senderId == gameService.HostNetId)
+            {
+                completion.TrySetResult(message.Allowed);
+            }
+        }
+
+        gameService.RegisterMessageHandler<LateJoinAvailabilityResponseMessage>(HandleResponse);
+        try
+        {
+            gameService.SendMessage(new LateJoinAvailabilityRequestMessage());
+            return await completion.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        }
+        finally
+        {
+            gameService.UnregisterMessageHandler<LateJoinAvailabilityResponseMessage>(HandleResponse);
+        }
+    }
+
+    private static void ShowLateJoinPopup(LocString title, LocString body)
+    {
+        NErrorPopup? popup = NErrorPopup.Create(title, body, null, showReportBugButton: false);
+        if (popup != null)
+        {
+            NModalContainer.Instance?.Add(popup);
+        }
+    }
+
+    private static void ShowLateJoinPopup(string title, string body)
+    {
+        NErrorPopup? popup = NErrorPopup.Create(title, body, showReportBugButton: false);
+        if (popup != null)
+        {
+            NModalContainer.Instance?.Add(popup);
         }
     }
 }

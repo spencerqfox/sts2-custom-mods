@@ -10,7 +10,9 @@ using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Entities.Potions;
 using MegaCrit.Sts2.Core.Entities.RestSite;
 using MegaCrit.Sts2.Core.Helpers;
+using MegaCrit.Sts2.Core.Localization.Fonts;
 using MegaCrit.Sts2.Core.Logging;
+using MegaCrit.Sts2.Core.Map;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.CardPools;
 using MegaCrit.Sts2.Core.Multiplayer;
@@ -21,6 +23,7 @@ using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Runs.History;
 using MegaCrit.Sts2.Core.Saves;
 using MegaCrit.Sts2.Core.Saves.Runs;
+using MegaCrit.Sts2.addons.mega_text;
 using JoinInProgress.Join;
 using JoinInProgress.Networking;
 
@@ -31,10 +34,10 @@ internal sealed partial class CatchUpScreen : Control
     private static CatchUpScreen? _active;
 
     private readonly HashSet<string> _purchasedShopItems = new();
-    private readonly HashSet<MapPointHistoryEntry> _handledCombatRewards = new();
     private readonly HashSet<MapPointHistoryEntry> _handledEventOutcomes = new();
     private RunState _state = null!;
     private Player _player = null!;
+    private CatchUpRewardPlan _plan = null!;
     private List<CatchUpStep> _steps = null!;
     private int _stepIndex;
     private bool _busy;
@@ -45,7 +48,7 @@ internal sealed partial class CatchUpScreen : Control
     private Label _status = null!;
     private VBoxContainer _choices = null!;
 
-    public static void Show(RunState state, Player player)
+    public static void Show(RunState state, Player player, CatchUpRewardPlan plan)
     {
         _active?.QueueFreeSafely();
         CatchUpScreen screen = new()
@@ -53,7 +56,8 @@ internal sealed partial class CatchUpScreen : Control
             Name = "JoinInProgressCatchUp",
             _state = state,
             _player = player,
-            _steps = BuildSteps(state)
+            _plan = plan,
+            _steps = BuildSteps(state, plan)
         };
         _active = screen;
         (NRun.Instance ?? throw new InvalidOperationException("The run scene is unavailable."))
@@ -123,10 +127,10 @@ internal sealed partial class CatchUpScreen : Control
         layout.AddThemeConstantOverride("separation", 12);
         margin.AddChild(layout);
 
-        _progress = NewLabel(string.Empty, 17, new Color(0.58f, 0.65f, 0.74f));
-        _title = NewLabel(string.Empty, 34, new Color(0.93f, 0.77f, 0.36f));
-        _summary = NewLabel(string.Empty, 19, new Color(0.83f, 0.85f, 0.89f));
-        _status = NewLabel(string.Empty, 18, new Color(0.69f, 0.82f, 0.72f));
+        _progress = NewLabel(string.Empty, 17, StsColors.lightGray);
+        _title = NewLabel(string.Empty, 34, StsColors.gold);
+        _summary = NewLabel(string.Empty, 19, StsColors.cream);
+        _status = NewLabel(string.Empty, 18, StsColors.aqua);
         layout.AddChild(_progress);
         layout.AddChild(_title);
         layout.AddChild(_summary);
@@ -154,7 +158,7 @@ internal sealed partial class CatchUpScreen : Control
         }
     }
 
-    private static List<CatchUpStep> BuildSteps(RunState state)
+    private static List<CatchUpStep> BuildSteps(RunState state, CatchUpRewardPlan plan)
     {
         List<CatchUpStep> steps = new();
         int globalFloor = 0;
@@ -165,12 +169,14 @@ internal sealed partial class CatchUpScreen : Control
             {
                 globalFloor++;
                 MapPointHistoryEntry floor = act[floorIndex];
+                CatchUpFloorRewardPlan floorPlan = plan.Floors.First(candidate =>
+                    candidate.ActIndex == actIndex && candidate.FloorIndex == floorIndex);
                 List<MapPointRoomHistoryEntry> rooms = floor.Rooms
                     .Where(room => room.RoomType is not RoomType.Map and not RoomType.Unassigned)
                     .ToList();
                 if (rooms.Count == 0)
                 {
-                    steps.Add(new CatchUpStep(actIndex, globalFloor, floor, null, IsLastRoom: true));
+                    steps.Add(new CatchUpStep(actIndex, globalFloor, floor, null, null, IsLastRoom: true));
                     continue;
                 }
 
@@ -181,6 +187,7 @@ internal sealed partial class CatchUpScreen : Control
                         globalFloor,
                         floor,
                         rooms[roomIndex],
+                        floorPlan.Rooms[roomIndex],
                         roomIndex == rooms.Count - 1));
                 }
             }
@@ -205,6 +212,12 @@ internal sealed partial class CatchUpScreen : Control
         _summary.Text =
             $"HP {_player.Creature.CurrentHp}/{_player.Creature.MaxHp}    Gold {_player.Gold}    " +
             $"Recorded floor damage {mirroredDamage}";
+
+        if (step.Floor.MapPointType == MapPointType.Ancient)
+        {
+            ShowAncient(step);
+            return;
+        }
 
         switch (step.Room?.RoomType)
         {
@@ -233,114 +246,120 @@ internal sealed partial class CatchUpScreen : Control
 
     private void ShowCombatReward(CatchUpStep step)
     {
-        if (!_handledCombatRewards.Add(step.Floor))
+        ShowCombatCardGroup(step, 0);
+    }
+
+    private void ShowCombatCardGroup(CatchUpStep step, int groupIndex)
+    {
+        IReadOnlyList<CatchUpCardRewardGroup> groups = step.Rewards?.CardRewardGroups ?? [];
+        if (groupIndex >= groups.Count)
         {
-            AddInfo("This room shared the floor's recorded reward set, which has already been resolved.");
-            AddActionButton("Continue", () => CompleteStep(step));
+            ShowCombatRelic(step, 0);
             return;
         }
 
-        PlayerMapPointHistoryEntry reference = GetReferenceEntry(step.Floor);
-        List<CardChoiceHistoryEntry> cards = reference.CardChoices
-            .GroupBy(choice => choice.Card.Id)
-            .Select(group => group.First())
-            .ToList();
-        AddInfo(cards.Count == 0
-            ? "No card reward was recorded for this room."
-            : "Choose one of the recorded card rewards, or skip it.");
-
-        foreach (CardChoiceHistoryEntry choice in cards)
+        ClearChoices();
+        List<SerializableCard> cards = groups[groupIndex].Cards;
+        AddInfo($"Choose a personal card reward ({groupIndex + 1}/{groups.Count}), or skip it.");
+        foreach (SerializableCard card in cards)
         {
-            SerializableCard card = choice.Card;
-            AddActionButton(GetCardName(card), async () =>
+            AddActionButton(GetCardName(card), () =>
             {
                 AddCard(card, step.Floor);
-                RecordCardChoices(step.Floor, cards, card.Id);
-                await ShowCombatRelicOrComplete(step, reference);
+                RecordCardChoices(step.Floor, cards.Select(value =>
+                    new CardChoiceHistoryEntry { Card = value }).ToList(), card.Id);
+                ShowCombatCardGroup(step, groupIndex + 1);
+                return Task.CompletedTask;
             });
         }
-
-        AddActionButton("Skip card reward", async () =>
+        AddActionButton("Skip card reward", () =>
         {
-            RecordCardChoices(step.Floor, cards, null);
-            await ShowCombatRelicOrComplete(step, reference);
+            RecordCardChoices(step.Floor, cards.Select(value =>
+                new CardChoiceHistoryEntry { Card = value }).ToList(), null);
+            ShowCombatCardGroup(step, groupIndex + 1);
+            return Task.CompletedTask;
         });
     }
 
-    private Task ShowCombatRelicOrComplete(CatchUpStep step, PlayerMapPointHistoryEntry reference)
+    private void ShowCombatRelic(CatchUpStep step, int rewardIndex)
     {
-        List<ModelChoiceHistoryEntry> relics = reference.RelicChoices
-            .GroupBy(choice => choice.choice)
-            .Select(group => group.First())
-            .ToList();
-        if (relics.Count == 0)
+        IReadOnlyList<ModelId> relics = step.Rewards?.RelicRewards ?? [];
+        if (rewardIndex >= relics.Count)
         {
-            return ShowCombatPotionOrComplete(step, reference);
+            ShowCombatPotion(step, 0);
+            return;
         }
 
         ClearChoices();
-        List<ModelChoiceHistoryEntry> safeRelics = relics
-            .Where(choice => CanReplayRelic(ModelDb.GetById<RelicModel>(choice.choice)))
-            .ToList();
-        AddInfo(safeRelics.Count == relics.Count
-            ? "Choose a recorded relic reward, or skip it."
-            : "Relics with pickup-choice effects are omitted because their nested screens cannot be synchronized safely.");
-        foreach (ModelChoiceHistoryEntry choice in safeRelics)
+        ModelId relicId = relics[rewardIndex];
+        AddInfo($"Personal relic reward {rewardIndex + 1}/{relics.Count}.");
+        if (CanReplayRelic(ModelDb.GetById<RelicModel>(relicId)))
         {
-            ModelId relicId = choice.choice;
-            AddActionButton(GetModelName<RelicModel>(relicId), async () =>
+            AddActionButton($"Take {GetModelName<RelicModel>(relicId)}", async () =>
             {
                 if (await AddRelic(relicId, step.Floor))
                 {
-                    RecordRelicChoices(step.Floor, relics, relicId);
-                    await ShowCombatPotionOrComplete(step, reference);
+                    ShowCombatRelic(step, rewardIndex + 1);
                 }
             });
+        }
+        else
+        {
+            AddInfo("This relic has pickup logic that cannot be replayed safely.");
         }
         AddActionButton("Skip relic reward", () =>
         {
-            RecordRelicChoices(step.Floor, relics, null);
-            return ShowCombatPotionOrComplete(step, reference);
+            GetLocalEntry(step.Floor).RelicChoices.Add(new ModelChoiceHistoryEntry(relicId, wasPicked: false));
+            ShowCombatRelic(step, rewardIndex + 1);
+            return Task.CompletedTask;
         });
-        return Task.CompletedTask;
     }
 
-    private Task ShowCombatPotionOrComplete(CatchUpStep step, PlayerMapPointHistoryEntry reference)
+    private void ShowCombatPotion(CatchUpStep step, int rewardIndex)
     {
-        List<ModelChoiceHistoryEntry> potions = reference.PotionChoices
-            .GroupBy(choice => choice.choice)
-            .Select(group => group.First())
-            .ToList();
-        if (potions.Count == 0)
+        IReadOnlyList<ModelId> potions = step.Rewards?.PotionRewards ?? [];
+        if (rewardIndex >= potions.Count)
         {
-            return CompleteStep(step);
+            _ = CompleteStep(step);
+            return;
         }
 
         ClearChoices();
-        AddInfo("Choose one of the recorded potion rewards, or skip it.");
-        foreach (ModelChoiceHistoryEntry choice in potions)
+        ModelId potionId = potions[rewardIndex];
+        AddInfo($"Personal potion reward {rewardIndex + 1}/{potions.Count}.");
+        if (!_player.HasOpenPotionSlots)
         {
-            ModelId potionId = choice.choice;
-            AddActionButton(GetModelName<PotionModel>(potionId), () =>
+            foreach (PotionModel existing in _player.Potions.ToList())
             {
-                PotionModel potion = ModelDb.GetById<PotionModel>(potionId);
-                var result = _player.AddPotionInternal(potion.ToMutable());
-                if (!result.success)
+                AddActionButton($"Discard {existing.Title.GetFormattedText()} and take {GetModelName<PotionModel>(potionId)}", () =>
                 {
-                    _status.Text = "No open potion slot.";
+                    _player.DiscardPotionInternal(existing);
+                    GetLocalEntry(step.Floor).PotionDiscarded.Add(existing.Id);
+                    _player.AddPotionInternal(ModelDb.GetById<PotionModel>(potionId).ToMutable());
+                    GetLocalEntry(step.Floor).PotionChoices.Add(new ModelChoiceHistoryEntry(potionId, wasPicked: true));
+                    ShowCombatPotion(step, rewardIndex + 1);
                     return Task.CompletedTask;
-                }
-
-                RecordPotionChoices(step.Floor, potions, potionId);
-                return CompleteStep(step);
-            });
+                });
+            }
         }
+        AddActionButton($"Take {GetModelName<PotionModel>(potionId)}", () =>
+        {
+            var result = _player.AddPotionInternal(ModelDb.GetById<PotionModel>(potionId).ToMutable());
+            if (!result.success)
+            {
+                _status.Text = "No open potion slot. Skip this reward or discard a potion before retrying.";
+                return Task.CompletedTask;
+            }
+            GetLocalEntry(step.Floor).PotionChoices.Add(new ModelChoiceHistoryEntry(potionId, wasPicked: true));
+            ShowCombatPotion(step, rewardIndex + 1);
+            return Task.CompletedTask;
+        });
         AddActionButton("Skip potion reward", () =>
         {
-            RecordPotionChoices(step.Floor, potions, null);
-            return CompleteStep(step);
+            GetLocalEntry(step.Floor).PotionChoices.Add(new ModelChoiceHistoryEntry(potionId, wasPicked: false));
+            ShowCombatPotion(step, rewardIndex + 1);
+            return Task.CompletedTask;
         });
-        return Task.CompletedTask;
     }
 
     private void ShowRestSite(CatchUpStep step)
@@ -390,26 +409,16 @@ internal sealed partial class CatchUpScreen : Control
 
     private void ShowShop(CatchUpStep step)
     {
-        PlayerMapPointHistoryEntry reference = GetReferenceEntry(step.Floor);
-        AddInfo($"Recorded shop stock · Your gold: {_player.Gold}. Buy any items, then leave.");
+        CatchUpShopRewardPlan shop = step.Rewards?.Shop ??
+            throw new InvalidOperationException("The personal shop plan is missing.");
+        AddInfo($"Your personal shop stock · Your gold: {_player.Gold}. Buy any items, then leave.");
 
         int index = 0;
-        foreach (CardChoiceHistoryEntry choice in reference.CardChoices.GroupBy(item => item.Card.Id).Select(group => group.First()))
+        foreach (CatchUpShopCardOffer offer in shop.Cards)
         {
             string key = $"{_stepIndex}:card:{index++}";
-            SerializableCard card = choice.Card;
-            CardModel model = SaveUtil.CardOrDeprecated(
-                card.Id ?? throw new InvalidOperationException("A recorded shop card has no model ID."));
-            int cost = model.Rarity switch
-            {
-                CardRarity.Rare => 150,
-                CardRarity.Uncommon => 75,
-                _ => 50
-            };
-            if (model.Pool is ColorlessCardPool)
-            {
-                cost = (int)Math.Round(cost * 1.15f);
-            }
+            SerializableCard card = offer.Card;
+            int cost = offer.Cost;
             AddShopButton(key, $"Card · {GetCardName(card)} — {cost} gold", cost, () =>
             {
                 AddCard(card, step.Floor);
@@ -423,39 +432,34 @@ internal sealed partial class CatchUpScreen : Control
         }
 
         index = 0;
-        foreach (ModelChoiceHistoryEntry choice in reference.RelicChoices.GroupBy(item => item.choice).Select(group => group.First()))
+        foreach (CatchUpShopModelOffer offer in shop.Relics)
         {
             string key = $"{_stepIndex}:relic:{index++}";
-            ModelId relicId = choice.choice;
+            ModelId relicId = offer.ModelId;
             RelicModel relic = ModelDb.GetById<RelicModel>(relicId);
             if (!CanReplayRelic(relic))
             {
                 AddInfo($"{relic.Title.GetFormattedText()} is unavailable during catch-up because it has custom pickup logic.");
                 continue;
             }
-            int cost = relic.MerchantCost;
+            int cost = offer.Cost;
             AddShopButton(key, $"Relic · {GetModelName<RelicModel>(relicId)} — {cost} gold", cost,
                 () => AddRelic(relicId, step.Floor));
         }
 
         index = 0;
-        foreach (ModelChoiceHistoryEntry choice in reference.PotionChoices.GroupBy(item => item.choice).Select(group => group.First()))
+        foreach (CatchUpShopModelOffer offer in shop.Potions)
         {
             string key = $"{_stepIndex}:potion:{index++}";
-            ModelId potionId = choice.choice;
+            ModelId potionId = offer.ModelId;
             PotionModel potion = ModelDb.GetById<PotionModel>(potionId);
-            int cost = potion.Rarity switch
-            {
-                PotionRarity.Rare => 100,
-                PotionRarity.Uncommon => 75,
-                _ => 50
-            };
+            int cost = offer.Cost;
             AddShopButton(key, $"Potion · {potion.Title.GetFormattedText()} — {cost} gold", cost, () =>
             {
                 var result = _player.AddPotionInternal(potion.ToMutable());
                 if (!result.success)
                 {
-                    _status.Text = "No open potion slot.";
+                    ShowShopPotionReplacement(step, key, cost, potionId);
                     return Task.FromResult(false);
                 }
                 GetLocalEntry(step.Floor).BoughtPotions.Add(potionId);
@@ -471,6 +475,37 @@ internal sealed partial class CatchUpScreen : Control
             return Task.FromResult(true);
         }, spendImmediately: false);
         AddActionButton("Leave shop", () => CompleteStep(step));
+    }
+
+    private void ShowShopPotionReplacement(CatchUpStep step, string key, int cost, ModelId potionId)
+    {
+        ClearChoices();
+        AddInfo($"Choose a potion to discard before buying {GetModelName<PotionModel>(potionId)}.");
+        foreach (PotionModel existing in _player.Potions.ToList())
+        {
+            AddActionButton($"Discard {existing.Title.GetFormattedText()}", () =>
+            {
+                if (_player.Gold < cost)
+                {
+                    throw new InvalidOperationException("Not enough gold.");
+                }
+                _player.DiscardPotionInternal(existing);
+                _player.AddPotionInternal(ModelDb.GetById<PotionModel>(potionId).ToMutable());
+                _player.Gold -= cost;
+                _purchasedShopItems.Add(key);
+                PlayerMapPointHistoryEntry entry = GetLocalEntry(step.Floor);
+                entry.PotionDiscarded.Add(existing.Id);
+                entry.BoughtPotions.Add(potionId);
+                entry.GoldSpent += cost;
+                ShowCurrentStep();
+                return Task.CompletedTask;
+            });
+        }
+        AddActionButton("Back to shop", () =>
+        {
+            ShowCurrentStep();
+            return Task.CompletedTask;
+        });
     }
 
     private void ShowDeckForRemoval(CatchUpStep step, string key, int cost)
@@ -506,32 +541,33 @@ internal sealed partial class CatchUpScreen : Control
 
     private void ShowTreasure(CatchUpStep step)
     {
-        PlayerMapPointHistoryEntry reference = GetReferenceEntry(step.Floor);
-        List<ModelChoiceHistoryEntry> relics = reference.RelicChoices
-            .GroupBy(choice => choice.choice)
-            .Select(group => group.First())
-            .ToList();
-        List<ModelChoiceHistoryEntry> safeRelics = relics
-            .Where(choice => CanReplayRelic(ModelDb.GetById<RelicModel>(choice.choice)))
+        List<ModelId> relics = step.Rewards?.RelicRewards ?? [];
+        List<ModelId> safeRelics = relics
+            .Where(relicId => CanReplayRelic(ModelDb.GetById<RelicModel>(relicId)))
             .ToList();
         AddInfo(relics.Count == 0
             ? "The chest had no recorded relic."
             : safeRelics.Count == 0
-                ? "The recorded relic requires a pickup screen and cannot be synchronized; skip this chest."
-                : "Choose a relic from the recorded chest.");
-        foreach (ModelChoiceHistoryEntry choice in safeRelics)
+                ? "The personal relic requires pickup logic that cannot be synchronized; skip this chest."
+                : "Choose your personal chest relic.");
+        foreach (ModelId relicId in safeRelics)
         {
-            ModelId relicId = choice.choice;
             AddActionButton(GetModelName<RelicModel>(relicId), async () =>
             {
                 if (await AddRelic(relicId, step.Floor))
                 {
-                    RecordRelicChoices(step.Floor, relics, relicId);
                     await CompleteStep(step);
                 }
             });
         }
-        AddActionButton(relics.Count == 0 ? "Continue" : "Skip chest", () => CompleteStep(step));
+        AddActionButton(relics.Count == 0 ? "Continue" : "Skip chest", () =>
+        {
+            foreach (ModelId relicId in relics)
+            {
+                GetLocalEntry(step.Floor).RelicChoices.Add(new ModelChoiceHistoryEntry(relicId, wasPicked: false));
+            }
+            return CompleteStep(step);
+        });
     }
 
     private void ShowEvent(CatchUpStep step)
@@ -554,6 +590,61 @@ internal sealed partial class CatchUpScreen : Control
             await CompleteStep(step);
         });
         AddActionButton("Pass without copying the outcome", () => CompleteStep(step));
+    }
+
+    private void ShowAncient(CatchUpStep step)
+    {
+        List<CatchUpAncientRelicOffer> offers = step.Rewards?.AncientRelicChoices ?? [];
+        if (!_handledEventOutcomes.Add(step.Floor))
+        {
+            AddActionButton("Continue", () => CompleteStep(step));
+            return;
+        }
+
+        int oldHp = _player.Creature.CurrentHp;
+        int healPercent = step.Rewards?.AncientHealPercent ?? 100;
+        decimal healAmount = (_player.Creature.MaxHp - oldHp) * healPercent / 100m;
+        _player.Creature.HealInternal(healAmount);
+        GetLocalEntry(step.Floor).HpHealed += _player.Creature.CurrentHp - oldHp;
+
+        AddInfo("Choose one of your personal replay-safe Ancient relics.");
+        foreach (CatchUpAncientRelicOffer offer in offers)
+        {
+            ModelId relicId = offer.Relic.Id ??
+                throw new InvalidOperationException("An Ancient relic offer has no model ID.");
+            AddActionButton(GetModelName<RelicModel>(relicId), async () =>
+            {
+                if (!await AddRelic(
+                        relicId,
+                        step.Floor,
+                        serializedRelic: offer.Relic))
+                {
+                    return;
+                }
+                RecordAncientChoices(step.Floor, offers, relicId);
+                await CompleteStep(step);
+            });
+        }
+        if (offers.Count == 0)
+        {
+            AddActionButton("Continue", () => CompleteStep(step));
+        }
+    }
+
+    private void RecordAncientChoices(
+        MapPointHistoryEntry floor,
+        IReadOnlyList<CatchUpAncientRelicOffer> offers,
+        ModelId selected)
+    {
+        PlayerMapPointHistoryEntry local = GetLocalEntry(floor);
+        foreach (CatchUpAncientRelicOffer offer in offers)
+        {
+            ModelId relicId = offer.Relic.Id ??
+                throw new InvalidOperationException("An Ancient relic offer has no model ID.");
+            local.AncientChoices.Add(new AncientChoiceHistoryEntry(
+                ModelDb.GetById<RelicModel>(relicId).Title,
+                relicId == selected));
+        }
     }
 
     private async Task ApplyRecordedEventOutcome(CatchUpStep step, PlayerMapPointHistoryEntry reference)
@@ -667,7 +758,10 @@ internal sealed partial class CatchUpScreen : Control
         return button;
     }
 
-    private async Task<bool> AddRelic(ModelId relicId, MapPointHistoryEntry floor)
+    private async Task<bool> AddRelic(
+        ModelId relicId,
+        MapPointHistoryEntry floor,
+        SerializableRelic? serializedRelic = null)
     {
         RelicModel canonical = ModelDb.GetById<RelicModel>(relicId);
         if (!CanReplayRelic(canonical))
@@ -681,7 +775,9 @@ internal sealed partial class CatchUpScreen : Control
             return false;
         }
 
-        RelicModel relic = canonical.ToMutable();
+        RelicModel relic = serializedRelic == null
+            ? canonical.ToMutable()
+            : RelicModel.FromSerializable(serializedRelic);
         _player.AddRelicInternal(relic);
         try
         {
@@ -692,6 +788,7 @@ internal sealed partial class CatchUpScreen : Control
             _player.RemoveRelicInternal(relic, silent: true);
             throw;
         }
+        relic.FloorAddedToDeck = _state.MapPointHistory.SelectMany(act => act).ToList().IndexOf(floor) + 1;
         _player.RelicGrabBag.Remove(canonical);
         GetLocalEntry(floor).RelicChoices.Add(new ModelChoiceHistoryEntry(relicId, wasPicked: true));
         return true;
@@ -718,61 +815,34 @@ internal sealed partial class CatchUpScreen : Control
         }
     }
 
-    private void RecordRelicChoices(
-        MapPointHistoryEntry floor,
-        IReadOnlyList<ModelChoiceHistoryEntry> choices,
-        ModelId? selected)
-    {
-        PlayerMapPointHistoryEntry local = GetLocalEntry(floor);
-        foreach (ModelChoiceHistoryEntry original in choices)
-        {
-            if (selected != null && original.choice == selected)
-            {
-                continue;
-            }
-            ModelChoiceHistoryEntry copy = original;
-            copy.wasPicked = selected != null && copy.choice == selected;
-            local.RelicChoices.Add(copy);
-        }
-    }
-
-    private void RecordPotionChoices(
-        MapPointHistoryEntry floor,
-        IReadOnlyList<ModelChoiceHistoryEntry> choices,
-        ModelId? selected)
-    {
-        PlayerMapPointHistoryEntry local = GetLocalEntry(floor);
-        foreach (ModelChoiceHistoryEntry original in choices)
-        {
-            ModelChoiceHistoryEntry copy = original;
-            copy.wasPicked = selected != null && copy.choice == selected;
-            local.PotionChoices.Add(copy);
-        }
-    }
-
     private Task CompleteStep(CatchUpStep step)
     {
         if (step.IsLastRoom)
         {
-            ApplyFloorLedger(step.Floor);
+            ApplyFloorLedger(step);
         }
         _stepIndex++;
         ShowCurrentStep();
         return Task.CompletedTask;
     }
 
-    private void ApplyFloorLedger(MapPointHistoryEntry floor)
+    private void ApplyFloorLedger(CatchUpStep step)
     {
-        PlayerMapPointHistoryEntry reference = GetReferenceEntry(floor);
-        PlayerMapPointHistoryEntry local = GetLocalEntry(floor);
+        PlayerMapPointHistoryEntry reference = GetReferenceEntry(step.Floor);
+        PlayerMapPointHistoryEntry local = GetLocalEntry(step.Floor);
+        CatchUpFloorRewardPlan floorPlan = _plan.Floors.First(plan => plan.GlobalFloor == step.GlobalFloor);
 
-        int goldGain = Math.Max(0, reference.GoldGained);
+        bool generatedCombatGold = floorPlan.Rooms.Any(room =>
+            room.RoomType is RoomType.Monster or RoomType.Elite or RoomType.Boss);
+        int goldGain = generatedCombatGold
+            ? floorPlan.Rooms.Sum(room => Math.Max(0, room.Gold))
+            : Math.Max(0, reference.GoldGained);
         int goldLoss = Math.Max(0, reference.GoldLost + reference.GoldStolen);
         _player.Gold = Math.Max(0, _player.Gold + goldGain - goldLoss);
         local.GoldGained += goldGain;
         local.GoldLost += goldLoss;
 
-        int mirroredDamage = GetMirroredDamage(floor);
+        int mirroredDamage = GetMirroredDamage(step.Floor);
         int appliedDamage = Math.Min(mirroredDamage, Math.Max(0, _player.Creature.CurrentHp - 1));
         _player.Creature.SetCurrentHpInternal(_player.Creature.CurrentHp - appliedDamage);
         local.DamageTaken += mirroredDamage;
@@ -816,11 +886,7 @@ internal sealed partial class CatchUpScreen : Control
 
     private int GetMirroredDamage(MapPointHistoryEntry floor)
     {
-        return floor.PlayerStats
-            .Where(entry => entry.PlayerId != _player.NetId)
-            .Select(entry => entry.DamageTaken)
-            .DefaultIfEmpty(0)
-            .Max();
+        return GetReferenceEntry(floor).DamageTaken;
     }
 
     private PlayerMapPointHistoryEntry GetReferenceEntry(MapPointHistoryEntry floor)
@@ -918,7 +984,7 @@ internal sealed partial class CatchUpScreen : Control
 
     private void AddInfo(string text)
     {
-        Label label = NewLabel(text, 19, new Color(0.76f, 0.79f, 0.84f));
+        Label label = NewLabel(text, 19, StsColors.cream);
         label.CustomMinimumSize = new Vector2(0f, 54f);
         _choices.AddChild(label);
     }
@@ -943,10 +1009,11 @@ internal sealed partial class CatchUpScreen : Control
             Text = text,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            Modulate = color
+            AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
-        label.AddThemeFontSizeOverride("font_size", fontSize);
+        label.AddThemeFontSizeOverride(ThemeConstants.Label.FontSize, fontSize);
+        label.AddThemeColorOverride(ThemeConstants.Label.FontColor, color);
+        label.ApplyLocaleFontSubstitution(FontType.Regular, ThemeConstants.Label.Font);
         return label;
     }
 
@@ -972,5 +1039,6 @@ internal sealed partial class CatchUpScreen : Control
         int GlobalFloor,
         MapPointHistoryEntry Floor,
         MapPointRoomHistoryEntry? Room,
+        CatchUpRoomRewardPlan? Rewards,
         bool IsLastRoom);
 }

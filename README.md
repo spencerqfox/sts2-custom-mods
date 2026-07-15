@@ -2,6 +2,9 @@
 
 Personal repo of Slay the Spire 2 gameplay mods. Ten mods live here today: **Fog of War**, **Frozen Hand**, **Door Remaker**, **Heavy Enchantment**, **Neow Custom Mode**, **Random Character Custom Mode**, **Friend Trading**, **Join In Progress**, **The Flagellant**, and **Correlated Randomness Fix**. All are DLL + PCK mods built against Godot 4.5.1 Mono.
 
+> [!IMPORTANT]
+> Versions of these mods are no longer built and released on GitHub. You can attempt to build releases yourself from source or use the releases available through the Steam Workshop.
+
 ## Mods
 
 ### Fog of War
